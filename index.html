@@ -1691,6 +1691,7 @@
           pointBackgroundColor: '#16a34a',
           pointBorderColor: '#15803d',
           yAxisID: 'y',
+          spanGaps: true,
           fill: false
         });
         datasets.push({
@@ -1716,6 +1717,7 @@
           pointBackgroundColor: '#eab308',
           pointBorderColor: '#ca8a04',
           yAxisID: 'y1',
+          spanGaps: true,
           fill: false
         });
         datasets.push({
@@ -1826,7 +1828,7 @@
           data: {
             labels,
             datasets: [
-              { label: 'Glukoz', data: glucoseData, borderColor: '#16a34a', pointBackgroundColor: '#16a34a', tension: 0.3, pointRadius: 3, fill: false },
+              { label: 'Glukoz', data: glucoseData, borderColor: '#16a34a', pointBackgroundColor: '#16a34a', tension: 0.3, pointRadius: 3, spanGaps: true, fill: false },
               { label: 'Glukoz Sınır', data: labels.map(() => glucoseLimit), borderColor: '#4ade80', borderDash: [4,4], pointRadius: 0, fill: false }
             ]
           },
@@ -1846,7 +1848,7 @@
           data: {
             labels,
             datasets: [
-              { label: 'HbA1c', data: hbaData, borderColor: '#eab308', pointBackgroundColor: '#eab308', tension: 0.3, pointRadius: 3, borderDash: [5,5], fill: false },
+              { label: 'HbA1c', data: hbaData, borderColor: '#eab308', pointBackgroundColor: '#eab308', tension: 0.3, pointRadius: 3, borderDash: [5,5], spanGaps: true, fill: false },
               { label: 'HbA1c Sınır', data: labels.map(() => hbaLimit), borderColor: '#facc15', borderDash: [4,4], pointRadius: 0, fill: false }
             ]
           },

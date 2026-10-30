@@ -2014,25 +2014,42 @@
       }
     }
 
+    function isKgOnly(m) {
+      return (m.glucose == null || m.glucose === '') && m.kg != null && m.kg !== '';
+    }
+
     function renderTable() {
       const yerFilter = document.getElementById('filterYer').value;
       const acTokFilter = document.getElementById('filterAcTok').value;
       const homaFilter = document.getElementById('filterHoma').value;
+      const showKg = !!(document.getElementById('filterShowKg') && document.getElementById('filterShowKg').checked);
       let list = [...state.measurements];
+
+      // Varsayılan: sadece-kilo gizle; işaretliyse göster
+      if (!showKg) {
+        list = list.filter(m => !isKgOnly(m));
+      }
 
       if (yerFilter !== 'all') {
         list = list.filter(m => {
+          // Kilo kayıtlarında yer yok — Yer filtresi onları elemesin
+          if (isKgOnly(m)) return true;
           const y = m.yer === 'laboratuvar' ? 'hastane' : (m.yer === 'ev' ? 'glukometre' : m.yer);
           return y === yerFilter;
         });
       }
-      if (acTokFilter !== 'all') list = list.filter(m => (m.actok || 'ac') === acTokFilter);
+      if (acTokFilter !== 'all') {
+        list = list.filter(m => {
+          if (isKgOnly(m)) return true;
+          return (m.actok || 'ac') === acTokFilter;
+        });
+      }
       if (homaFilter === 'var') list = list.filter(m => m.homa != null);
-      if (homaFilter === 'yok') list = list.filter(m => m.homa == null);
-      // Varsayılan: sadece-kilo kayıtlarını gizle
-      const showKg = document.getElementById('filterShowKg')?.checked;
-      if (!showKg) {
-        list = list.filter(m => m.glucose != null);
+      if (homaFilter === 'yok') {
+        list = list.filter(m => {
+          if (isKgOnly(m)) return showKg;
+          return m.homa == null;
+        });
       }
 
       // Olay + ölçüm birleşik zaman çizelgesi

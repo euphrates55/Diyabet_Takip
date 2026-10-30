@@ -1703,7 +1703,7 @@
           pointRadius: 4,
           pointBackgroundColor: '#16a34a',
           pointBorderColor: '#15803d',
-          yAxisID: 'y',
+          yAxisID: 'y1',
           spanGaps: true,
           fill: false
         });
@@ -1714,7 +1714,7 @@
           borderDash: [4, 4],
           borderWidth: 1.5,
           pointRadius: 0,
-          yAxisID: 'y',
+          yAxisID: 'y1',
           fill: false
         });
       }
@@ -1729,7 +1729,7 @@
           pointRadius: 3,
           pointBackgroundColor: '#eab308',
           pointBorderColor: '#ca8a04',
-          yAxisID: 'y1',
+          yAxisID: 'y',
           spanGaps: true,
           fill: false
         });
@@ -1740,7 +1740,7 @@
           borderDash: [4, 4],
           borderWidth: 1.5,
           pointRadius: 0,
-          yAxisID: 'y1',
+          yAxisID: 'y',
           fill: false
         });
       }
@@ -1790,25 +1790,25 @@
             y: {
               type: 'linear',
               position: 'left',
-              display: veri !== 'hba1c',
-              title: { display: false },
-              min: 60,
-              suggestedMax: 160,
-              ticks: {
-                color: '#16a34a',
-                font: { weight: '600' }
-              },
-              grid: { color: 'rgba(22,163,74,0.15)' }
-            },
-            y1: {
-              type: 'linear',
-              position: 'right',
               display: veri !== 'glukoz',
               title: { display: false },
               min: 4,
               max: 8,
               ticks: {
                 color: '#ca8a04',
+                font: { weight: '600' }
+              },
+              grid: { color: 'rgba(202,138,4,0.12)' }
+            },
+            y1: {
+              type: 'linear',
+              position: 'right',
+              display: veri !== 'hba1c',
+              title: { display: false },
+              min: 60,
+              suggestedMax: 160,
+              ticks: {
+                color: '#16a34a',
                 font: { weight: '600' }
               },
               grid: { drawOnChartArea: false }

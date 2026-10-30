@@ -432,8 +432,21 @@
     table th, table td { padding: 5px 6px; font-size: 0.8rem; vertical-align: middle; text-align: center; }
     table th { white-space: nowrap; }
     table td.note-cell { max-width: 100px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 0.75rem; color: var(--text-muted); text-align: left; }
-    tr.event-row td { background: rgba(99,102,241,0.06); text-align: left; font-size: 0.8rem; padding: 5px 6px; color: #5b21b6; vertical-align: middle; }
+    tr.event-row td {
+      background: rgba(99,102,241,0.06);
+      text-align: left;
+      font-size: 0.8rem;
+      font-weight: 400;
+      padding: 5px 6px;
+      color: #5b21b6;
+      vertical-align: middle;
+      line-height: 1.25;
+    }
+    tr.event-row td strong { font-weight: 600; font-size: inherit; }
     [data-theme="dark"] tr.event-row td { background: rgba(129,140,248,0.1); color: #a5b4fc; }
+    @media (max-width: 640px) {
+      tr.event-row td { font-size: 0.8rem; padding: 5px 6px; }
+    }
     .med-chip {
       display: flex; align-items: center; gap: 10px;
       background: var(--card); border: 1px solid var(--border);
@@ -2065,7 +2078,7 @@
       tbody.innerHTML = combined.map(row => {
         if (row._type === 'event') {
           return `<tr class="event-row">
-            <td colspan="10">📌 ${formatDateTR(row.date)} — <strong>${escapeHtml(row.title)}</strong></td>
+            <td colspan="10" style="font-size:0.8rem;font-weight:400;">📌 ${formatDateTR(row.date)} — ${escapeHtml(row.title)}</td>
             <td style="white-space:nowrap">
               <button class="btn btn-sm btn-secondary" onclick="editEvent(${row.id})">✏️</button>
               <button class="btn btn-sm btn-danger" onclick="deleteEvent(${row.id})">🗑</button>

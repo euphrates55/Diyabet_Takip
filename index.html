@@ -1,0 +1,2856 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="theme-color" content="#0f766e">
+  <title>Diyabet Takip</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+  <style>
+    :root {
+      --primary: #0f766e;
+      --primary-dark: #0d9488;
+      --primary-light: #ccfbf1;
+      --accent: #f59e0b;
+      --danger: #dc2626;
+      --success: #16a34a;
+      --bg: #f0fdfa;
+      --card: #ffffff;
+      --text: #134e4a;
+      --text-muted: #64748b;
+      --border: #99f6e4;
+      --shadow: 0 4px 20px rgba(15, 118, 110, 0.12);
+      --radius: 16px;
+      --input-bg: #f8fffe;
+      --stopped-bg: #f1f5f9;
+      --stopped-border: #94a3b8;
+    }
+    [data-theme="dark"] {
+      --primary: #2dd4bf;
+      --primary-dark: #14b8a6;
+      --primary-light: #134e4a;
+      --accent: #fbbf24;
+      --danger: #f87171;
+      --success: #4ade80;
+      --bg: #0f172a;
+      --card: #1e293b;
+      --text: #e2e8f0;
+      --text-muted: #94a3b8;
+      --border: #334155;
+      --shadow: 0 4px 20px rgba(0,0,0,0.4);
+      --input-bg: #0f172a;
+      --stopped-bg: #1e293b;
+      --stopped-border: #64748b;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding-bottom: 80px;
+      line-height: 1.5;
+      transition: background 0.3s, color 0.3s;
+    }
+    .header {
+      background: linear-gradient(135deg, #0f766e 0%, #0d9488 100%);
+      color: white;
+      padding: 10px 14px;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      box-shadow: 0 2px 12px rgba(15, 118, 110, 0.25);
+    }
+    [data-theme="dark"] .header {
+      background: linear-gradient(135deg, #134e4a 0%, #0f766e 100%);
+    }
+    .header h1 {
+      font-size: 1.05rem;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      line-height: 1.25;
+    }
+    .header-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 8px;
+    }
+    .header p { display: none; }
+    .theme-btn {
+      background: rgba(255,255,255,0.2);
+      border: none;
+      color: white;
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      font-size: 1.1rem;
+      cursor: pointer;
+      flex-shrink: 0;
+    }
+    .nav { display: none !important; }
+    .nav-btn { display: none; }
+    .header-menu-btn {
+      display: block;
+      width: 100%;
+      text-align: left;
+      background: transparent;
+      border: none;
+      border-bottom: 1px solid rgba(255,255,255,0.12);
+      color: white;
+      padding: 12px 16px;
+      font-size: 0.95rem;
+      cursor: pointer;
+    }
+    .header-menu-btn:last-child { border-bottom: none; }
+    .header-menu-btn:hover, .header-menu-btn:active { background: rgba(255,255,255,0.12); }
+    .container { max-width: 960px; margin: 0 auto; padding: 10px 12px; }
+    /* Yatay (landscape) ekranda yazı şişmesin */
+    @media (orientation: landscape) and (max-height: 500px) {
+      .header { padding: 6px 12px; }
+      .header h1 { font-size: 0.95rem; }
+      .container { padding: 6px 10px; }
+      .card { padding: 10px !important; margin-bottom: 8px; }
+      .card-title { font-size: 0.9rem; margin-bottom: 6px; }
+      .stat-card .value { font-size: 1.15rem; }
+      .chart-wrap { height: 180px !important; }
+      .info-box p, .info-box h4 { font-size: 0.82rem; }
+      body { padding-bottom: 64px; }
+    }
+    @media (max-width: 600px) {
+      .stats-grid { grid-template-columns: repeat(2, 1fr) !important; gap: 8px; }
+      .stat-card { padding: 10px; }
+      .stat-card .value { font-size: 1.25rem; }
+      .chart-wrap { height: 220px; }
+      #userBanner { display: none !important; }
+    }
+    .card {
+      background: var(--card);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      padding: 18px;
+      margin-bottom: 16px;
+      border: 1px solid var(--border);
+      transition: background 0.3s, border 0.3s;
+    }
+    .card-title {
+      font-size: 1.05rem;
+      font-weight: 700;
+      margin-bottom: 12px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      color: var(--primary);
+    }
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
+      gap: 8px;
+      margin-bottom: 12px;
+    }
+    .stat-card {
+      background: linear-gradient(135deg, var(--primary-light), var(--card));
+      border-radius: 12px;
+      padding: 8px 10px;
+      text-align: center;
+      border: 1px solid var(--border);
+    }
+    [data-theme="dark"] .stat-card {
+      background: linear-gradient(135deg, #134e4a, #1e293b);
+    }
+    .stat-card .label { font-size: 0.65rem; color: var(--text-muted); font-weight: 600; }
+    .stat-card .value { font-size: 1.2rem; font-weight: 800; color: var(--primary); margin: 2px 0; line-height: 1.15; }
+    .stat-card .sub { font-size: 0.62rem; color: var(--text-muted); }
+    .stat-card.warning .value { color: var(--accent); }
+    .stat-card.danger .value { color: var(--danger); }
+    .stat-card.good .value { color: var(--success); }
+    .form-group { margin-bottom: 14px; }
+    .form-group label {
+      display: block;
+      font-size: 0.85rem;
+      font-weight: 600;
+      margin-bottom: 5px;
+      color: var(--text);
+    }
+    .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    @media (max-width: 500px) {
+      .form-row { grid-template-columns: 1fr; }
+    }
+    input, select, textarea {
+      width: 100%;
+      padding: 12px 14px;
+      border: 1.5px solid var(--border);
+      border-radius: 12px;
+      font-size: 1rem;
+      background: var(--input-bg);
+      color: var(--text);
+      transition: border 0.2s;
+    }
+    input:focus, select:focus, textarea:focus {
+      outline: none;
+      border-color: var(--primary);
+      box-shadow: 0 0 0 3px rgba(15, 118, 110, 0.15);
+    }
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      padding: 12px 20px;
+      border: none;
+      border-radius: 12px;
+      font-size: 0.95rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .btn-primary {
+      background: linear-gradient(135deg, #0f766e, #0d9488);
+      color: white;
+      box-shadow: 0 4px 12px rgba(15, 118, 110, 0.3);
+    }
+    .btn-primary:hover { transform: translateY(-1px); }
+    .btn-secondary {
+      background: var(--primary-light);
+      color: var(--primary);
+    }
+    [data-theme="dark"] .btn-secondary {
+      background: #334155;
+      color: #2dd4bf;
+    }
+    .btn-danger {
+      background: #fee2e2;
+      color: #b91c1c;
+    }
+    [data-theme="dark"] .btn-danger {
+      background: #7f1d1d;
+      color: #fecaca;
+    }
+    .btn-sm { padding: 6px 10px; font-size: 0.78rem; border-radius: 8px; }
+    .btn-block { width: 100%; }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.82rem;
+    }
+    th, td {
+      padding: 9px 6px;
+      text-align: left;
+      border-bottom: 1px solid var(--border);
+    }
+    th {
+      background: var(--primary-light);
+      font-weight: 700;
+      color: var(--primary);
+      position: sticky;
+      top: 0;
+      white-space: nowrap;
+    }
+    [data-theme="dark"] th { background: #134e4a; }
+    tr:hover { background: rgba(15,118,110,0.05); }
+    .badge {
+      display: inline-block;
+      padding: 2px 7px;
+      border-radius: 20px;
+      font-size: 0.68rem;
+      font-weight: 600;
+    }
+    .badge-ok { background: #dcfce7; color: #166534; }
+    .badge-warn { background: #fef3c7; color: #92400e; }
+    .badge-bad { background: #fee2e2; color: #991b1b; }
+    /* G yeşil yuvarlak · H mavi köşeli · K mor elips + çerçeve */
+    .badge-g, .badge-h, .badge-k {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-width: 22px;
+      height: 22px;
+      padding: 0 6px;
+      font-size: 0.75rem;
+      font-weight: 800;
+      letter-spacing: 0.02em;
+      line-height: 1;
+      border: 2px solid transparent;
+    }
+    .badge-g, .badge-home {
+      background: #16a34a;
+      color: #fff !important;
+      border-radius: 50%;
+      border-color: #15803d;
+      box-shadow: 0 1px 2px rgba(22,163,74,0.35);
+    }
+    .badge-h, .badge-lab {
+      background: #2563eb;
+      color: #fff !important;
+      border-radius: 4px;
+      border-color: #1d4ed8;
+      box-shadow: 0 1px 2px rgba(37,99,235,0.35);
+    }
+    .badge-k, .badge-kg {
+      background: #7c3aed;
+      color: #fff !important;
+      border-radius: 10px;
+      border-color: #5b21b6;
+      box-shadow: 0 1px 2px rgba(124,58,237,0.4);
+    }
+    [data-theme="dark"] .badge-ok { background: #14532d; color: #86efac; }
+    [data-theme="dark"] .badge-warn { background: #78350f; color: #fde68a; }
+    [data-theme="dark"] .badge-bad { background: #7f1d1d; color: #fecaca; }
+    [data-theme="dark"] .badge-g, [data-theme="dark"] .badge-home {
+      background: #22c55e; color: #052e16 !important; border-color: #16a34a;
+    }
+    [data-theme="dark"] .badge-h, [data-theme="dark"] .badge-lab {
+      background: #3b82f6; color: #eff6ff !important; border-color: #2563eb;
+    }
+    [data-theme="dark"] .badge-k, [data-theme="dark"] .badge-kg {
+      background: #a78bfa; color: #2e1065 !important; border-color: #7c3aed;
+    }
+    .chart-wrap {
+      position: relative;
+      height: 280px;
+      margin: 10px 0;
+    }
+    .section { display: none; }
+    .section.active { display: block; animation: fadeIn 0.25s ease; }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+    .med-item {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 14px;
+      margin-bottom: 10px;
+      border-left: 5px solid var(--success);
+    }
+    .med-item.stopped {
+      background: var(--stopped-bg);
+      border-left: 5px solid var(--stopped-border);
+      opacity: 0.78;
+      filter: grayscale(0.4);
+    }
+    .med-item.stopped .med-name {
+      text-decoration: line-through;
+      color: var(--text-muted);
+    }
+    .med-name { font-weight: 700; font-size: 1.05rem; }
+    .med-dose { color: var(--text-muted); font-size: 0.9rem; }
+    .info-box {
+      background: var(--primary-light);
+      border-radius: 12px;
+      padding: 14px;
+      margin-bottom: 12px;
+      border: 1px solid var(--border);
+    }
+    [data-theme="dark"] .info-box {
+      background: #134e4a;
+    }
+    .info-box h4 { color: var(--primary); margin-bottom: 6px; }
+    .info-box p { font-size: 0.9rem; color: var(--text); }
+    .homa-result {
+      background: var(--primary-light);
+      border-radius: 12px;
+      padding: 12px;
+      text-align: center;
+      margin-top: 4px;
+      font-weight: 700;
+      font-size: 1.15rem;
+      min-height: 48px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .footer-nav {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      background: var(--card);
+      border-top: 1px solid var(--border);
+      display: flex;
+      justify-content: space-around;
+      padding: 8px 0 calc(8px + env(safe-area-inset-bottom));
+      z-index: 90;
+      box-shadow: 0 -4px 20px rgba(0,0,0,0.06);
+    }
+    .footer-nav button {
+      background: none;
+      border: none;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 2px;
+      font-size: 0.68rem;
+      color: var(--text-muted);
+      cursor: pointer;
+      padding: 6px 8px;
+    }
+    .footer-nav button.active { color: var(--primary); font-weight: 600; }
+    .footer-nav .icon { font-size: 1.3rem; }
+    .modal {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.55);
+      z-index: 200;
+      align-items: flex-end;
+      justify-content: center;
+    }
+    .modal.open { display: flex; }
+    .modal-content {
+      background: var(--card);
+      width: 100%;
+      max-width: 520px;
+      max-height: 92vh;
+      overflow-y: auto;
+      border-radius: 20px 20px 0 0;
+      padding: 20px;
+      animation: slideUp 0.3s ease;
+    }
+    @keyframes slideUp { from { transform: translateY(100%); } to { transform: none; } }
+    .modal-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 16px;
+    }
+    .modal-header h3 { font-size: 1.15rem; color: var(--primary); }
+    .close-btn {
+      background: var(--border);
+      border: none;
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      font-size: 1.2rem;
+      cursor: pointer;
+      color: var(--text);
+    }
+    .table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+    table th, table td { padding: 5px 6px; font-size: 0.8rem; vertical-align: middle; text-align: center; }
+    table th { white-space: nowrap; }
+    table td.note-cell { max-width: 100px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 0.75rem; color: var(--text-muted); text-align: left; }
+    tr.event-row td { background: rgba(99,102,241,0.06); text-align: left; font-size: 0.8rem; padding: 5px 6px; color: #5b21b6; vertical-align: middle; }
+    [data-theme="dark"] tr.event-row td { background: rgba(129,140,248,0.1); color: #a5b4fc; }
+    .med-chip {
+      display: flex; align-items: center; gap: 10px;
+      background: var(--card); border: 1px solid var(--border);
+      border-radius: 14px; padding: 10px 12px; margin-bottom: 8px;
+      box-shadow: 0 1px 4px rgba(15,118,110,0.06);
+    }
+    .med-chip.stopped { opacity: 0.72; border-style: dashed; background: var(--stopped-bg); }
+    .med-avatar {
+      width: 40px; height: 40px; border-radius: 12px;
+      background: linear-gradient(135deg, #0f766e, #14b8a6);
+      color: #fff; display: flex; align-items: center; justify-content: center;
+      font-weight: 700; font-size: 0.95rem; flex-shrink: 0;
+    }
+    .med-chip.stopped .med-avatar { background: linear-gradient(135deg, #94a3b8, #64748b); }
+    .med-chip-body { flex: 1; min-width: 0; }
+    .med-chip-title { font-weight: 700; font-size: 0.95rem; }
+    .med-chip-title a { color: var(--text); text-decoration: none; border-bottom: 1px dashed var(--primary); }
+    .med-chip-meta { font-size: 0.78rem; color: var(--text-muted); margin-top: 2px; }
+    .med-chip-actions { display: flex; gap: 4px; flex-shrink: 0; }
+    .note { font-size: 0.78rem; color: var(--text-muted); margin-top: 8px; }
+    .filter-bar {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-bottom: 12px;
+      align-items: center;
+    }
+    .filter-bar select {
+      width: auto;
+      min-width: 140px;
+      padding: 8px 12px;
+      font-size: 0.85rem;
+    }
+    .filter-label { font-size: 0.85rem; font-weight: 600; }
+    .settings-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 10px 0;
+      border-bottom: 1px solid var(--border);
+    }
+    .settings-row:last-child { border-bottom: none; }
+    @media (min-width: 768px) {
+      .footer-nav { display: none; }
+      body { padding-bottom: 20px; }
+      .modal { align-items: center; }
+      .modal-content { border-radius: 20px; max-height: 85vh; }
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <div class="header-top">
+      <h1 id="menuTrigger" style="cursor:pointer;user-select:none;" title="Menü">🩺 <span id="appTitle">Diyabet Takip</span> <span style="opacity:0.75;font-size:0.75em;">▾</span></h1>
+      <button class="theme-btn" id="themeToggle" title="Tema değiştir">🌙</button>
+    </div>
+    <div id="headerMenu" style="display:none;margin-top:8px;background:rgba(0,0,0,0.2);border-radius:12px;overflow:hidden;">
+      <button type="button" class="header-menu-btn" data-section="dashboard">🏠 Özet</button>
+      <button type="button" class="header-menu-btn" data-section="measurements">📋 Ölçümler</button>
+      <button type="button" class="header-menu-btn" data-section="add">➕ Ekle</button>
+      <button type="button" class="header-menu-btn" data-section="meds">💊 İlaçlar</button>
+      <button type="button" class="header-menu-btn" data-section="info">ℹ️ Bilgi / Ayar</button>
+    </div>
+  </div>
+
+  <div class="container">
+    <!-- DASHBOARD -->
+    <div id="dashboard" class="section active">
+      <div class="stats-grid" id="statsGrid"></div>
+      <div class="card">
+        <div class="card-title" style="justify-content:space-between;flex-wrap:wrap;gap:6px;">
+          <span>📈 Grafik</span>
+          <div style="display:flex;flex-wrap:wrap;gap:4px;align-items:center;">
+            <button class="btn btn-sm btn-secondary chart-quick" type="button" data-days="7" onclick="setChartQuickDays(7)">Haftalık</button>
+            <button class="btn btn-sm btn-secondary chart-quick" type="button" data-days="30" onclick="setChartQuickDays(30)">Aylık</button>
+            <button class="btn btn-sm btn-secondary chart-quick" type="button" data-days="90" onclick="setChartQuickDays(90)">3 Aylık</button>
+            <button class="btn btn-sm btn-secondary chart-quick" type="button" data-days="all" onclick="setChartQuickDays('all')">Tümü</button>
+            <button class="btn btn-sm btn-secondary" type="button" onclick="openChartFilterModal()">🔎 Filtre</button>
+          </div>
+        </div>
+        <p class="note" id="chartFilterInfo" style="margin:0 0 8px;"></p>
+        <div class="chart-wrap">
+          <canvas id="mainChart"></canvas>
+        </div>
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-top:6px;flex-wrap:wrap;gap:6px;">
+          <p class="note" style="margin:0;">🟢 Glukoz • 🟡 HbA1c • 🟣 Olay</p>
+          <div style="display:flex;gap:4px;flex-wrap:wrap;">
+            <button class="btn btn-sm btn-secondary" type="button" id="btnSplitCharts" onclick="toggleSplitCharts()">Grafikleri ayır</button>
+            <button class="btn btn-sm btn-secondary" type="button" id="btnKgChart" onclick="toggleKgChart()">Kilo grafiği</button>
+          </div>
+        </div>
+        <div id="splitCharts" style="display:none;margin-top:10px;">
+          <div class="note" style="margin-bottom:4px;font-weight:600;color:var(--success);">Glukoz</div>
+          <div class="chart-wrap" style="height:200px;">
+            <canvas id="chartGlukoz"></canvas>
+          </div>
+          <div class="note" style="margin:10px 0 4px;font-weight:600;color:#ca8a04;">HbA1c</div>
+          <div class="chart-wrap" style="height:200px;">
+            <canvas id="chartHba1c"></canvas>
+          </div>
+        </div>
+        <div id="kgChartBox" style="display:none;margin-top:10px;">
+          <div class="note" style="margin-bottom:6px;font-weight:600;">Kilo karşılaştırması</div>
+          <div style="display:flex;flex-wrap:wrap;gap:10px;margin-bottom:8px;font-size:0.82rem;">
+            <label style="display:flex;align-items:center;gap:4px;"><input type="checkbox" id="kgShowKg" checked onchange="renderChart()"> <span style="color:#6366f1;font-weight:600;">Kilo</span></label>
+            <label style="display:flex;align-items:center;gap:4px;"><input type="checkbox" id="kgShowG" onchange="renderChart()"> <span style="color:#16a34a;font-weight:600;">Glukoz</span></label>
+            <label style="display:flex;align-items:center;gap:4px;"><input type="checkbox" id="kgShowH" onchange="renderChart()"> <span style="color:#ca8a04;font-weight:600;">HbA1c</span></label>
+          </div>
+          <div class="chart-wrap" style="height:220px;">
+            <canvas id="chartKg"></canvas>
+          </div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-title">📋 Son 5 Ölçüm</div>
+        <div id="last5Preview"></div>
+      </div>
+      <div class="card">
+        <div class="card-title">💊 Aktif İlaçlar</div>
+        <div id="activeMedsPreview"></div>
+      </div>
+    </div>
+
+    <!-- MEASUREMENTS -->
+    <div id="measurements" class="section">
+      <div class="card">
+        <div class="card-title" style="justify-content:space-between;flex-wrap:wrap;gap:8px;">
+          <span>📋 Tüm Ölçümler</span>
+          </div>
+        <div class="filter-bar">
+          <span class="filter-label">Filtre:</span>
+          <select id="filterYer">
+            <option value="all">Yer: Tümü</option>
+            <option value="hastane">H (Hastane)</option>
+            <option value="glukometre">G (Glukometre)</option>
+          </select>
+          <select id="filterAcTok">
+            <option value="all">Aç/Tok: Tümü</option>
+            <option value="ac">Açlık</option>
+            <option value="tok">Tokluk</option>
+          </select>
+          <select id="filterHoma">
+            <option value="all">HOMA: Tümü</option>
+            <option value="var">Sadece HOMA’lı</option>
+            <option value="yok">HOMA’sız</option>
+          </select>
+          <label style="display:flex;align-items:center;gap:6px;font-size:0.85rem;white-space:nowrap;">
+            <input type="checkbox" id="filterShowKg" onchange="renderTable()">
+            Kilo kayıtlarını göster
+          </label>
+        </div>
+        <div class="table-wrap">
+          <table id="measTable">
+            <thead>
+              <tr>
+                <th>Tarih</th>
+                <th>Saat</th>
+                <th>A-T</th>
+                <th>Glukoz</th>
+                <th>HbA1c</th>
+                <th>İnsülin</th>
+                <th>HOMA</th>
+                <th>Kilo</th>
+                <th>Yer</th>
+                <th>Açıklama</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ADD -->
+    <div id="add" class="section">
+      <!-- Seçim ekranı -->
+      <div class="card" id="addChooser">
+        <div class="card-title">➕ Ne eklemek istiyorsunuz?</div>
+        <button type="button" class="btn btn-primary btn-block" style="margin-bottom:10px;padding:14px" onclick="openAddType('glucose')">🩸 Şeker ölçümü</button>
+        <button type="button" class="btn btn-secondary btn-block" style="margin-bottom:10px;padding:14px" onclick="openAddType('kg')">⚖️ Kilo ölçümü</button>
+        <button type="button" class="btn btn-secondary btn-block" style="padding:14px" onclick="openAddType('event')">📌 Olay</button>
+      </div>
+
+      <!-- Şeker formu -->
+      <div class="card" id="addGlucoseCard" style="display:none">
+        <div class="card-title" id="addTitle">🩸 Şeker ölçümü</div>
+        <form id="measForm">
+          <div class="form-row">
+            <div class="form-group">
+              <label>Tarih</label>
+              <input type="date" id="mDate" required>
+            </div>
+            <div class="form-group">
+              <label>Saat</label>
+              <input type="time" id="mTime">
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label>Ölçüm Yeri</label>
+              <select id="mYer" required>
+                <option value="glukometre" selected>Glukometre</option>
+                <option value="hastane">Hastane</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label>Aç / Tok</label>
+              <select id="mAcTok" required>
+                <option value="ac">Açlık</option>
+                <option value="tok">Tokluk</option>
+              </select>
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label>Kan Şekeri (mg/dL)</label>
+              <input type="number" id="mGlucose" step="0.1" min="40" max="400" placeholder="örn. 110" required>
+            </div>
+            <div class="form-group">
+              <label>HbA1c (%)</label>
+              <input type="number" id="mHba1c" step="0.1" min="3" max="15" placeholder="örn. 5,5">
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label>İnsülin (µU/mL)</label>
+              <input type="number" id="mInsulin" step="0.01" min="0" max="100" placeholder="örn. 9,5">
+            </div>
+            <div class="form-group">
+              <label>HOMA-IR (otomatik)</label>
+              <div class="homa-result" id="homaPreview">—</div>
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label>Kilo (kg) <span style="font-weight:400;color:var(--text-muted)">(opsiyonel)</span></label>
+              <input type="number" id="mKg" step="0.1" min="30" max="250" placeholder="örn. 82,5">
+            </div>
+            <div class="form-group"></div>
+          </div>
+          <div class="form-group">
+            <label>Açıklama (opsiyonel)</label>
+            <textarea id="mNote" rows="2" placeholder="Ek bilgi..."></textarea>
+          </div>
+          <button type="submit" class="btn btn-primary btn-block">Kaydet</button>
+          <button type="button" class="btn btn-secondary btn-block" style="margin-top:8px" id="cancelEditBtn" onclick="cancelEdit()">Geri / İptal</button>
+        </form>
+      </div>
+
+      <!-- Kilo formu -->
+      <div class="card" id="addKgCard" style="display:none">
+        <div class="card-title" id="addKgTitle">⚖️ Kilo ölçümü</div>
+        <form id="kgForm">
+          <div class="form-row">
+            <div class="form-group">
+              <label>Tarih</label>
+              <input type="date" id="kDate" required>
+            </div>
+            <div class="form-group">
+              <label>Saat</label>
+              <input type="time" id="kTime">
+            </div>
+          </div>
+          <div class="form-group">
+            <label>Kilo (kg)</label>
+            <input type="number" id="kKg" step="0.1" min="30" max="250" placeholder="örn. 82,5" required>
+          </div>
+          <div class="form-group">
+            <label>Açıklama (opsiyonel)</label>
+            <textarea id="kNote" rows="2" placeholder="örn. sabah tartı"></textarea>
+          </div>
+          <button type="submit" class="btn btn-primary btn-block">Kaydet</button>
+          <button type="button" class="btn btn-secondary btn-block" style="margin-top:8px" onclick="cancelEdit()">Geri / İptal</button>
+        </form>
+      </div>
+    </div>
+
+    <!-- MEDS -->
+    <div id="meds" class="section">
+      <div class="card">
+        <div class="card-title">💊 İlaç Geçmişi</div>
+        <div id="medsList"></div>
+        <button class="btn btn-secondary btn-block" style="margin-top:12px" onclick="openMedModal()">+ İlaç Ekle</button>
+        <p class="note">İlaç adına tıklayınca kısa bilgi penceresi açılır.</p>
+      </div>
+    </div>
+
+    <!-- INFO / SETTINGS -->
+    <div id="info" class="section">
+      <div class="card">
+        <div class="card-title">👤 Kişi Bilgisi</div>
+        <div class="form-group">
+          <label>Ad Soyad (veya takma ad)</label>
+          <input type="text" id="setUserName" placeholder="örn. Ahmet Yılmaz" maxlength="40">
+        </div>
+        <button class="btn btn-primary btn-block" onclick="saveUserName()">Kaydet</button>
+      </div>
+
+      <div class="card">
+        <div class="card-title">📤 Paylaş (PDF)</div>
+        <p class="note" style="margin-bottom:8px">İçerik ve tarih aralığını seçin. Önizleme bu uygulamada açılır; oradan yazdırıp PDF kaydedebilirsiniz.</p>
+        <div class="form-group">
+          <label>İçerik</label>
+          <select id="shareContent">
+            <option value="both">Grafik + veri tablosu</option>
+            <option value="chart">Sadece grafik</option>
+            <option value="data">Sadece veri tablosu</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Veri / tarih aralığı</label>
+          <select id="shareScope">
+            <option value="all">Tüm ölçümler</option>
+            <option value="90">Son 90 gün</option>
+            <option value="30">Son 30 gün</option>
+            <option value="7">Son 7 gün</option>
+            <option value="chart">Grafikteki mevcut filtre</option>
+          </select>
+        </div>
+        <button class="btn btn-primary btn-block" onclick="shareAsPdf()">Paylaş önizleme</button>
+      </div>
+
+      <div class="card">
+        <div class="card-title">💾 Veri Yönetimi – Dışa Aktar</div>
+        <button class="btn btn-secondary btn-block" onclick="exportData()">JSON Dışa Aktar (Tam Yedek)</button>
+        <button class="btn btn-secondary btn-block" style="margin-top:8px" onclick="exportCSV()">Excel / CSV Dışa Aktar (Ölçümler)</button>
+      </div>
+
+      <div class="card">
+        <div class="card-title">📥 Veri Yönetimi – İçe Aktar</div>
+        <p class="note" style="margin-bottom:12px">Excel (.xlsx / .xls), CSV veya JSON. Sütunlar: Tarih, Saat, Glukoz, HbA1c, İnsülin, Kilo, Yer, Aç/Tok, Not</p>
+        <div class="form-group">
+          <label>Dosya seç</label>
+          <input type="file" id="importExcelFile" accept=".xlsx,.xls,.csv,.json" style="padding:10px">
+        </div>
+        <div class="form-group">
+          <label>İçe aktarma şekli</label>
+          <select id="importMode">
+            <option value="ekle">Mevcut verilere Ekle</option>
+            <option value="yukle">Üzerine Yaz</option>
+            <option value="sil">Önce Sil, sonra Yükle</option>
+          </select>
+        </div>
+        <button class="btn btn-primary btn-block" onclick="handleImportFile()">İçe Aktar</button>
+      </div>
+
+      <div class="card">
+        <div class="card-title">⚙️ Sınır Değerleri</div>
+        <div class="settings-row">
+          <span>Glukoz sınırı (mg/dL)</span>
+          <input type="number" id="setGlucoseLimit" style="width:90px" min="70" max="150" step="1">
+        </div>
+        <div class="settings-row">
+          <span>HbA1c sınırı (%)</span>
+          <input type="number" id="setHba1cLimit" style="width:90px" min="4" max="8" step="0.1">
+        </div>
+        <div class="settings-row">
+          <span>İnsülin alt (µU/mL)</span>
+          <input type="number" id="setInsulinMin" style="width:90px" min="0" max="50" step="0.1">
+        </div>
+        <div class="settings-row">
+          <span>İnsülin üst (µU/mL)</span>
+          <input type="number" id="setInsulinMax" style="width:90px" min="1" max="100" step="0.1">
+        </div>
+        <p class="note" style="margin:12px 0 4px;font-weight:600;">HOMA-IR aralıkları</p>
+        <div class="settings-row">
+          <span>Normal üst sınır (&lt;)</span>
+          <input type="number" id="setHomaOk" style="width:90px" min="1" max="5" step="0.1">
+        </div>
+        <div class="settings-row">
+          <span>Belirgin alt sınır (≥)</span>
+          <input type="number" id="setHomaMild" style="width:90px" min="2" max="6" step="0.1">
+        </div>
+        <p class="note">&lt;normal → yeşil · normal–belirgin arası → sarı (hafif) · ≥belirgin → kırmızı</p>
+        <button class="btn btn-primary btn-block" style="margin-top:12px" onclick="saveLimits()">Sınırları Kaydet</button>
+      </div>
+
+      <div class="card">
+        <div class="card-title">ℹ️ Nedir? Ne Anlama Gelir?</div>
+        <div class="info-box">
+          <h4>Açlık Kan Şekeri (Glukoz)</h4>
+          <p>En az 8 saat açlık sonrası. Normal genelde &lt;100 mg/dL. 100–125 bozulmuş açlık glukozu, ≥126 diyabet düşündürür.</p>
+        </div>
+        <div class="info-box">
+          <h4>HbA1c</h4>
+          <p>Son 2–3 ayın ortalaması. Parantez: eAG ≈ (28,7×HbA1c)−46,7 mg/dL.</p>
+        </div>
+        <div class="info-box">
+          <h4>HOMA-IR</h4>
+          <p>(Glukoz × İnsülin) ÷ 405. &lt;2 normal · 2–2,9 hafif · ≥3 belirgin. Tanı koymaz.</p>
+        </div>
+        <div class="info-box">
+          <h4>G / H · A-T · Olay</h4>
+          <p><strong>G</strong> Glukometre, <strong>H</strong> Hastane. <strong>Aç</strong>/<strong>Tok</strong>. Olaylar ölçümler arasına not düşer; grafikte mor kesik çizgi ile görünür.</p>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">🗑️ Tehlikeli İşlemler</div>
+        <button class="btn btn-danger btn-block" onclick="if(confirm('TÜM ölçüm, olay ve ilaç kayıtları silinecek. Emin misiniz?')){clearAllData()}">Tüm Verileri Sil</button>
+        <p class="note">Veriler tarayıcınızda saklanır.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- FOOTER NAV -->
+  <div class="footer-nav">
+    <button data-section="dashboard" class="active"><span class="icon">🏠</span>Özet</button>
+    <button data-section="measurements"><span class="icon">📋</span>Ölçüm</button>
+    <button data-section="add"><span class="icon">➕</span>Ekle</button>
+    <button data-section="meds"><span class="icon">💊</span>İlaç</button>
+    <button data-section="info"><span class="icon">ℹ️</span>Ayar</button>
+  </div>
+
+  <!-- MED MODAL -->
+  <div class="modal" id="medModal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3 id="medModalTitle">İlaç Ekle</h3>
+        <button class="close-btn" onclick="closeMedModal()">×</button>
+      </div>
+      <form id="medForm">
+        <input type="hidden" id="medId">
+        <div class="form-group">
+          <label>İlaç Adı</label>
+          <input type="text" id="medName" required placeholder="örn. Glifor">
+        </div>
+        <div class="form-group">
+          <label>Doz</label>
+          <input type="text" id="medDose" required placeholder="örn. 1000 mg">
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>Başlama Tarihi</label>
+            <input type="date" id="medStart" required>
+          </div>
+          <div class="form-group">
+            <label>Kesme Tarihi (boş = aktif)</label>
+            <input type="date" id="medEnd">
+          </div>
+        </div>
+        <div class="form-group">
+          <label>Tür</label>
+          <select id="medType">
+            <option value="diyabet">Diyabet</option>
+            <option value="tansiyon">Tansiyon</option>
+            <option value="diger">Diğer</option>
+          </select>
+        </div>
+        <button type="submit" class="btn btn-primary btn-block">Kaydet</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- SHARE PREVIEW MODAL -->
+  <div class="modal" id="shareModal">
+    <div class="modal-content" style="max-width:720px;max-height:90vh;display:flex;flex-direction:column;">
+      <div class="modal-header">
+        <h3>Paylaş önizleme</h3>
+        <button class="close-btn" onclick="closeShareModal()">×</button>
+      </div>
+      <div id="sharePreviewBody" style="overflow:auto;flex:1;font-size:0.85rem;padding:4px 0;"></div>
+      <div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap;">
+        <button type="button" class="btn btn-primary" style="flex:1" onclick="nativeSharePreview()">Paylaş</button>
+        <button type="button" class="btn btn-secondary" style="flex:1" onclick="downloadShareHtml()">Dosya indir</button>
+        <button type="button" class="btn btn-secondary" style="flex:1" onclick="closeShareModal()">Kapat</button>
+      </div>
+      <p class="note" style="margin-top:8px">Paylaş: sistem paylaş paneli (WhatsApp, Mail…). Dosya indir: HTML kaydı. Yeni pencere açılmaz.</p>
+    </div>
+  </div>
+
+  <!-- EVENT MODAL -->
+  <div class="modal" id="eventModal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3>Olay Ekle</h3>
+        <button class="close-btn" onclick="closeEventModal()">×</button>
+      </div>
+      <div class="form-group">
+        <label>Tarih</label>
+        <input type="date" id="evDate" required>
+      </div>
+      <div class="form-group">
+        <label>Olay / açıklama</label>
+        <input type="text" id="evTitle" maxlength="120" placeholder="örn. Spora başladım" required>
+      </div>
+      <button type="button" class="btn btn-primary btn-block" onclick="saveEvent()">Kaydet</button>
+      <button type="button" class="btn btn-secondary btn-block" style="margin-top:8px" onclick="closeEventModal()">İptal</button>
+    </div>
+  </div>
+
+  <!-- NOTE POPUP -->
+  <div class="modal" id="notePopupModal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3>Açıklama</h3>
+        <button class="close-btn" onclick="closeNotePopup()">×</button>
+      </div>
+      <p id="notePopupBody" style="white-space:pre-wrap;line-height:1.5;"></p>
+      <button type="button" class="btn btn-primary btn-block" style="margin-top:12px" onclick="closeNotePopup()">Kapat</button>
+    </div>
+  </div>
+
+  <!-- MED INFO POPUP -->
+  <div class="modal" id="medInfoModal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3 id="medInfoTitle">İlaç</h3>
+        <button class="close-btn" onclick="closeMedInfo()">×</button>
+      </div>
+      <div id="medInfoBody"></div>
+      <button type="button" class="btn btn-primary btn-block" style="margin-top:12px" onclick="closeMedInfo()">Kapat</button>
+    </div>
+  </div>
+
+  <!-- CHART FILTER MODAL -->
+  <div class="modal" id="chartFilterModal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3>Grafik Filtreleri</h3>
+        <button class="close-btn" onclick="closeChartFilterModal()">×</button>
+      </div>
+      <div class="form-group">
+        <label>Ölçüm yeri</label>
+        <select id="cfYer">
+          <option value="all">Tümü</option>
+          <option value="hastane">H — Hastane</option>
+          <option value="glukometre">G — Glukometre</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Aç / Tok</label>
+        <select id="cfAcTok">
+          <option value="all">Tümü</option>
+          <option value="ac">Açlık</option>
+          <option value="tok">Tokluk</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Saat dilimi</label>
+        <select id="cfSaat">
+          <option value="all">Tümü</option>
+          <option value="sabah">Sabah (05–11)</option>
+          <option value="ogle">Öğle (11–15)</option>
+          <option value="ikindi">İkindi (15–18)</option>
+          <option value="aksam">Akşam (18–22)</option>
+          <option value="gece">Gece (22–05)</option>
+          <option value="sabah_sonrasi">Sabah sonrası (11+)</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Zamanlar</label>
+        <select id="cfDonem" onchange="onCfDonemChange()">
+          <option value="all">Tüm zamanlar</option>
+          <option value="7">Son 7 gün (haftalık)</option>
+          <option value="30">Son 30 gün (aylık)</option>
+          <option value="90">Son 90 gün (3 aylık)</option>
+          <option value="180">Son 6 ay</option>
+          <option value="365">Son 1 yıl</option>
+          <option value="2026">2026</option>
+          <option value="2025">2025</option>
+          <option value="2024">2024</option>
+          <option value="2023">2023 ve öncesi</option>
+          <option value="range">Tarih aralığı seç…</option>
+        </select>
+      </div>
+      <div id="cfDateRangeBox" style="display:none;">
+        <div class="form-row">
+          <div class="form-group">
+            <label>Başlangıç</label>
+            <input type="date" id="cfDateFrom">
+          </div>
+          <div class="form-group">
+            <label>Bitiş</label>
+            <input type="date" id="cfDateTo">
+          </div>
+        </div>
+      </div>
+      <div class="form-group">
+        <label>Gösterilecek veri</label>
+        <select id="cfVeri">
+          <option value="both">Glukoz + HbA1c</option>
+          <option value="glukoz">Sadece Glukoz</option>
+          <option value="hba1c">Sadece HbA1c</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Olay filtresi</label>
+        <select id="cfEventMode">
+          <option value="all">Tüm dönem (olay yok say)</option>
+          <option value="after">Seçilen olaydan sonra</option>
+          <option value="before">Seçilen olaydan önce</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Olay seç</label>
+        <select id="cfEventId">
+          <option value="">—</option>
+        </select>
+      </div>
+      <button type="button" class="btn btn-primary btn-block" onclick="applyChartFilters()">Filtrele</button>
+      <button type="button" class="btn btn-secondary btn-block" style="margin-top:8px" onclick="resetChartFilters()">Sıfırla</button>
+    </div>
+  </div>
+
+  <script>
+    const STORAGE_KEY = 'diyabetTakip_v2';
+    const DEFAULT_LIMITS = { glucose: 100, hba1c: 5.7, insulinMin: 2.6, insulinMax: 24.9, homaOk: 2, homaMild: 3 };
+
+    // Preloaded data (with yer field)
+    const initialMeasurements = [
+      { id: 1, date: '2019-01-22', time: '09:46', glucose: 99, hba1c: null, insulin: null, homa: null, kg: null, yer: 'hastane', actok: 'ac', note: '' },
+      { id: 2, date: '2020-06-11', time: '09:27', glucose: 113, hba1c: null, insulin: null, homa: null, kg: null, yer: 'hastane', actok: 'ac', note: '' },
+      { id: 3, date: '2021-11-19', time: '13:07', glucose: 125, hba1c: null, insulin: null, homa: null, kg: null, yer: 'hastane', actok: 'ac', note: '' },
+      { id: 4, date: '2023-05-26', time: '15:08', glucose: 98, hba1c: null, insulin: null, homa: null, kg: null, yer: 'hastane', actok: 'ac', note: '' },
+      { id: 5, date: '2023-11-24', time: '09:27', glucose: 134, hba1c: null, insulin: null, homa: null, kg: 89.2, yer: 'hastane', actok: 'ac', note: '' },
+      { id: 6, date: '2023-11-30', time: '08:59', glucose: 137, hba1c: 5.5, insulin: 18.05, homa: 6.11, kg: 89.0, yer: 'hastane', actok: 'ac', note: '' },
+      { id: 7, date: '2023-12-21', time: '09:20', glucose: 136, hba1c: 5.9, insulin: 12.08, homa: 4.06, kg: 88.5, yer: 'hastane', actok: 'ac', note: '' },
+      { id: 8, date: '2024-01-15', time: '09:10', glucose: 132, hba1c: 5.7, insulin: null, homa: null, kg: 88.0, yer: 'hastane', actok: 'ac', note: '' },
+      { id: 9, date: '2024-02-15', time: '09:00', glucose: 122, hba1c: 5.3, insulin: 9.65, homa: 2.91, kg: 87.2, yer: 'hastane', actok: 'ac', note: '' },
+      { id: 10, date: '2024-03-27', time: '09:00', glucose: 138, hba1c: 5.5, insulin: null, homa: null, kg: 86.8, yer: 'hastane', actok: 'ac', note: '' },
+      { id: 11, date: '2024-05-15', time: '09:00', glucose: 112, hba1c: 5.4, insulin: 9.18, homa: 2.54, kg: 86.0, yer: 'hastane', actok: 'ac', note: '' },
+      { id: 12, date: '2024-07-13', time: '09:00', glucose: 121, hba1c: 5.0, insulin: null, homa: null, kg: 85.4, yer: 'hastane', actok: 'ac', note: '' },
+      { id: 13, date: '2024-09-03', time: '09:00', glucose: 92, hba1c: 5.0, insulin: null, homa: null, kg: 84.9, yer: 'hastane', actok: 'ac', note: '' },
+      // Sadece kilo örnekleri (glukoz yok)
+      { id: 101, date: '2024-10-01', time: '07:30', glucose: null, hba1c: null, insulin: null, homa: null, kg: 84.5, yer: null, actok: null, note: 'Sadece tartı' },
+      { id: 102, date: '2024-11-15', time: '07:30', glucose: null, hba1c: null, insulin: null, homa: null, kg: 84.0, yer: null, actok: null, note: 'Sadece tartı' },
+      { id: 14, date: '2025-02-26', time: '09:00', glucose: 117, hba1c: 5.2, insulin: null, homa: null, kg: 83.6, yer: 'hastane', actok: 'ac', note: '' },
+      { id: 103, date: '2025-04-10', time: '07:45', glucose: null, hba1c: null, insulin: null, homa: null, kg: 83.2, yer: null, actok: null, note: 'Sadece tartı' },
+      { id: 15, date: '2025-09-19', time: '09:00', glucose: 128, hba1c: 5.8, insulin: 14.5, homa: 4.58, kg: 84.1, yer: 'hastane', actok: 'ac', note: '' },
+      { id: 104, date: '2025-10-05', time: '08:00', glucose: null, hba1c: null, insulin: null, homa: null, kg: 83.8, yer: null, actok: null, note: 'Sadece tartı' },
+      { id: 16, date: '2025-12-26', time: '08:40', glucose: 118, hba1c: 5.3, insulin: null, homa: null, kg: 83.5, yer: 'hastane', actok: 'ac', note: '' },
+      { id: 17, date: '2026-03-10', time: '08:30', glucose: 130, hba1c: 5.9, insulin: 16.3, homa: 5.23, kg: 84.0, yer: 'hastane', actok: 'ac', note: '' },
+      { id: 105, date: '2026-06-01', time: '07:30', glucose: null, hba1c: null, insulin: null, homa: null, kg: 83.0, yer: null, actok: null, note: 'Sadece tartı' },
+      { id: 18, date: '2026-08-14', time: '13:54', glucose: 78, hba1c: 5.9, insulin: null, homa: null, kg: 82.7, yer: 'hastane', actok: 'ac', note: '' },
+      { id: 106, date: '2026-09-20', time: '07:30', glucose: null, hba1c: null, insulin: null, homa: null, kg: 82.4, yer: null, actok: null, note: 'Sadece tartı' },
+      { id: 19, date: '2026-10-21', time: '09:20', glucose: 146, hba1c: 5.9, insulin: null, homa: null, kg: 82.8, yer: 'hastane', actok: 'ac', note: '' },
+      { id: 107, date: '2026-10-28', time: '07:15', glucose: null, hba1c: null, insulin: null, homa: null, kg: 82.5, yer: null, actok: null, note: 'Sadece tartı' }
+    ];
+
+    const initialEvents = [
+      { id: 1, date: '2024-09-10', title: 'Spora başladım' },
+      { id: 2, date: '2025-03-01', title: 'Diyet düzenlemesi' }
+    ];
+
+    const initialMeds = [
+      { id: 1, name: 'Diaformin', dose: '850 mg', start: '2023-12-25', end: null, type: 'diyabet' },
+      { id: 2, name: 'Glifor', dose: '1000 mg', start: '2024-03-27', end: null, type: 'diyabet' },
+      { id: 3, name: 'Glifex', dose: '15 mg', start: '2024-08-05', end: '2025-02-26', type: 'diyabet' },
+      { id: 4, name: 'Vasoxen Plus', dose: '5/12,5 mg', start: '2025-10-15', end: null, type: 'tansiyon' },
+      { id: 5, name: 'Ecopirin Pro', dose: '81 mg', start: '2025-11-20', end: null, type: 'diger' }
+    ];
+
+    const medProspectus = {
+      'Diaformin': {
+        etken: 'Metformin HCl 850 mg',
+        grup: 'Biguanid – Oral antidiyabetik',
+        neIcin: 'Tip 2 diyabet tedavisinde, özellikle fazla kilolu hastalarda kan şekeri kontrolü. Karaciğerde glukoz üretimini azaltır, periferik insülin duyarlılığını artırır, bağırsaktan glukoz emilimini geciktirir.',
+        not: 'Genellikle yemeklerle birlikte alınır. Laktik asidoz riski nedeniyle böbrek fonksiyonu (GFR) önemlidir. Mide-bağırsak yan etkileri başlangıçta sık görülür.'
+      },
+      'Glifor': {
+        etken: 'Metformin HCl 1000 mg',
+        grup: 'Biguanid – Oral antidiyabetik',
+        neIcin: 'Tip 2 diyabet ve prediyabet riski yüksek kişilerde kullanılır. Diaformin ile aynı etken madde (metformin). Karaciğer glukoz üretimini baskılar.',
+        not: 'Doz kademeli artırılabilir (maksimum genellikle 2000-3000 mg/gün). Yemeklerle alınması önerilir.'
+      },
+      'Glifex': {
+        etken: 'Pioglitazon 15 mg (Glifix ile aynı grup)',
+        grup: 'Tiazolidinedion (TZD) – Oral antidiyabetik',
+        neIcin: 'İnsülin direncini azaltarak vücudun kendi insülinini daha iyi kullanmasını sağlar. Diğer oral ilaçlarla kontrol sağlanamadığında eklenir.',
+        not: '3-6 ay sonra HbA1c yanıtı değerlendirilir. Uzun süreli kullanımda kalp yetmezliği, ödem, kemik kırığı riski nedeniyle doktor takibi şarttır.'
+      },
+      'Vasoxen Plus': {
+        etken: 'Nebivolol 5 mg + Hidroklorotiyazid 12,5 mg',
+        grup: 'Selektif beta-blokör + Tiyazid diüretik',
+        neIcin: 'Esansiyel hipertansiyon tedavisi. Nebivolol kalp hızını düşürür ve damar genişletici etki gösterir; hidroklorotiyazid sıvı fazlasını azaltır.',
+        not: 'Günün aynı saatinde alınması önerilir. Şiddetli böbrek yetmezliğinde kullanılmamalıdır. Ani kesilmemelidir.'
+      },
+      'Ecopirin Pro': {
+        etken: 'Asetilsalisilik asit (Aspirin) 81 mg',
+        grup: 'Trombosit agregasyon inhibitörü (antiagregan)',
+        neIcin: 'Kalp-damar olaylarını (kalp krizi, inme) önlemek için düşük doz aspirin. Trombositlerin kümeleşmesini engeller.',
+        not: 'Enterik kaplıdır (mideyi korur). Kanama riski olanlarda, cerrahi öncesi ve bazı ilaçlarla birlikte dikkatli kullanılmalıdır.'
+      }
+    };
+
+    let state = {
+      measurements: [],
+      meds: [],
+      events: [],
+      limits: { ...DEFAULT_LIMITS },
+      theme: 'light',
+      userName: ''
+    };
+
+    let chart = null;
+    let chartG = null, chartH = null, chartKg = null;
+    let editingId = null;
+    let kgChartOn = false;
+
+    // ========== HELPERS ==========
+    function calcHoma(glucose, insulin) {
+      if (!glucose || !insulin || glucose <= 0 || insulin <= 0) return null;
+      return Math.round((glucose * insulin / 405) * 100) / 100;
+    }
+
+    function formatDateTR(iso) {
+      if (!iso) return '—';
+      const [y, m, d] = iso.split('-');
+      return `${d}.${m}.${String(y).slice(-2)}`;
+    }
+
+    function parseNum(v) {
+      if (v === null || v === undefined || v === '') return null;
+      return parseFloat(String(v).replace(',', '.'));
+    }
+
+    /** Görüntüde ondalık ayırıcı: virgül */
+    function formatDec(n, digits) {
+      if (n == null || n === '' || isNaN(Number(n))) return '—';
+      const num = Number(n);
+      if (digits == null) {
+        if (Number.isInteger(num)) return String(num);
+        return String(num).replace('.', ',');
+      }
+      return num.toFixed(digits).replace('.', ',');
+    }
+
+    function homaColor(h) {
+      if (h == null) return 'var(--text-muted)';
+      const ok = state.limits.homaOk ?? 2;
+      const mild = state.limits.homaMild ?? 3;
+      if (h < ok) return 'var(--success)';
+      if (h < mild) return '#ca8a04';
+      return 'var(--danger)';
+    }
+
+    function homaBadge(h) {
+      // Eski kullanım yerleri için boş bırak (sadece renkli sayı gösterilecek)
+      return '';
+    }
+
+    function formatHoma(h) {
+      if (h == null) return '—';
+      return `<span class="homa-val" style="color:${homaColor(h)};font-weight:700;cursor:pointer;white-space:nowrap" onclick="showHomaInfo(${h})" title="Sınır bilgisi">${formatDec(h, 2)}</span>`;
+    }
+
+    function showHomaInfo(h) {
+      const ok = state.limits.homaOk ?? 2;
+      const mild = state.limits.homaMild ?? 3;
+      const msg = 'HOMA-IR sınırları:\n• <' + formatDec(ok, 1) + ' → Normal\n• ' + formatDec(ok, 1) + '–' + formatDec(mild - 0.1, 1) + ' → Hafif direnç\n• ≥' + formatDec(mild, 1) + ' → Belirgin direnç\n\nBu değer: ' + formatDec(h, 2) +
+        (h < ok ? ' (normal)' : h < mild ? ' (hafif direnç)' : ' (belirgin direnç)');
+      document.getElementById('notePopupBody').textContent = msg;
+      document.getElementById('notePopupModal').querySelector('h3').textContent = 'HOMA-IR';
+      document.getElementById('notePopupModal').classList.add('open');
+    }
+
+    function yerBadge(yer) {
+      if (!yer) return '—';
+      if (yer === 'glukometre' || yer === 'ev') return '<span class="badge badge-g" title="Glukometre">G</span>';
+      if (yer === 'hastane' || yer === 'laboratuvar') return '<span class="badge badge-h" title="Hastane">H</span>';
+      return '—';
+    }
+
+    /** G yuvarlak yeşil · H köşeli mavi · K kapsül mor */
+    function yerOrTypeBadge(m) {
+      if (m.glucose == null && m.kg != null) {
+        return '<span class="badge badge-k" title="Kilo ölçümü">K</span>';
+      }
+      return yerBadge(m.yer);
+    }
+
+    function acTokBadge(actok) {
+      if (!actok) return '—';
+      if (actok === 'tok') return '<span class="badge badge-warn">Tok</span>';
+      if (actok === 'ac') return '<span class="badge badge-ok">Aç</span>';
+      return '—';
+    }
+
+    function glucoseClass(g) {
+      if (g == null) return '';
+      if (g < state.limits.glucose) return 'good';
+      if (g < 126) return 'warning';
+      return 'danger';
+    }
+
+    function hba1cClass(h) {
+      if (h == null) return '';
+      if (h < state.limits.hba1c) return 'good';
+      if (h < 6.5) return 'warning';
+      return 'danger';
+    }
+
+    function hba1cColor(h) {
+      if (h == null) return 'var(--text-muted)';
+      if (h < state.limits.hba1c) return 'var(--success)';
+      return 'var(--danger)';
+    }
+
+    // HbA1c → tahmini ortalama glukoz (eAG)  ADAG formülü
+    // eAG (mg/dL) = (28.7 × HbA1c) − 46.7
+    function hba1cToEag(hba1c) {
+      if (hba1c == null || hba1c <= 0) return null;
+      return Math.round((28.7 * hba1c) - 46.7);
+    }
+
+    function formatHba1c(h) {
+      if (h == null) return '—';
+      const eag = hba1cToEag(h);
+      const col = hba1cColor(h);
+      if (eag != null) {
+        return `<span style="color:${col};font-weight:700;white-space:nowrap">${formatDec(h, 1)}<span style="font-size:0.72em;font-weight:500;opacity:0.9;margin-left:2px">(${eag})</span></span>`;
+      }
+      return `<span style="color:${col};font-weight:700;white-space:nowrap">${formatDec(h, 1)}</span>`;
+    }
+
+    function calc3MonthAvg() {
+      const now = new Date();
+      const threeMonthsAgo = new Date(now);
+      threeMonthsAgo.setMonth(threeMonthsAgo.getMonth() - 3);
+      const recent = state.measurements.filter(m => {
+        const d = new Date(m.date);
+        return d >= threeMonthsAgo && m.glucose != null;
+      });
+      if (recent.length === 0) return null;
+      const sum = recent.reduce((a, m) => a + m.glucose, 0);
+      return Math.round((sum / recent.length) * 10) / 10;
+    }
+
+    // ========== STORAGE ==========
+    function updateHeaderTitle() {
+      const name = (state.userName || '').trim();
+      const titleEl = document.getElementById('appTitle');
+      if (name) {
+        titleEl.textContent = 'Diyabet Takip (' + name + ')';
+        document.title = 'Diyabet Takip (' + name + ')';
+      } else {
+        titleEl.textContent = 'Diyabet Takip';
+        document.title = 'Diyabet Takip';
+      }
+    }
+
+    function loadState() {
+      try {
+        const raw = localStorage.getItem(STORAGE_KEY);
+        if (raw) {
+          state = JSON.parse(raw);
+          if (!state.limits) state.limits = { ...DEFAULT_LIMITS };
+          if (!state.theme) state.theme = 'light';
+          if (state.userName == null) state.userName = '';
+          if (!state.events) state.events = [];
+          if (!state.limits.insulinMin) state.limits.insulinMin = DEFAULT_LIMITS.insulinMin;
+          if (!state.limits.insulinMax) state.limits.insulinMax = DEFAULT_LIMITS.insulinMax;
+          if (state.limits.homaOk == null) state.limits.homaOk = DEFAULT_LIMITS.homaOk;
+          if (state.limits.homaMild == null) state.limits.homaMild = DEFAULT_LIMITS.homaMild;
+          state.measurements.forEach(m => {
+            if (m.kg == null) m.kg = null;
+            // Sadece şeker ölçümlerinde yer/actok varsayılanı (kilo-only'ye dokunma)
+            const kgOnly = m.glucose == null && m.kg != null;
+            if (kgOnly) {
+              if (m.yer === 'hastane' || m.yer === 'glukometre' || m.yer === 'laboratuvar' || m.yer === 'ev') {
+                // eski hatalı doldurulmuş kilo kayıtlarını temizle
+                if (!m.note || String(m.note).includes('tartı') || String(m.note).toLowerCase().includes('kilo')) {
+                  /* bilinçli temizleme yok — sadece null olanları null bırak */
+                }
+              }
+              return;
+            }
+            if (m.yer === 'laboratuvar') m.yer = 'hastane';
+            if (m.yer === 'ev') m.yer = 'glukometre';
+            if (!m.yer) m.yer = 'hastane';
+            if (!m.actok) m.actok = 'ac';
+          });
+        } else {
+          // Try migrate from v1
+          const old = localStorage.getItem('diyabetTakip_v1');
+          if (old) {
+            const oldState = JSON.parse(old);
+            state.measurements = (oldState.measurements || []).map(m => {
+              let yer = m.yer || 'hastane';
+              if (yer === 'laboratuvar') yer = 'hastane';
+              if (yer === 'ev') yer = 'glukometre';
+              return { ...m, yer, actok: m.actok || 'ac' };
+            });
+            state.meds = oldState.meds || initialMeds;
+            state.limits = oldState.limits || { ...DEFAULT_LIMITS };
+            state.userName = oldState.userName || '';
+            saveState();
+          } else {
+            state.measurements = JSON.parse(JSON.stringify(initialMeasurements));
+            state.meds = JSON.parse(JSON.stringify(initialMeds));
+            state.events = JSON.parse(JSON.stringify(initialEvents));
+            saveState();
+          }
+        }
+      } catch (e) {
+        state.measurements = JSON.parse(JSON.stringify(initialMeasurements));
+        state.meds = JSON.parse(JSON.stringify(initialMeds));
+        state.events = JSON.parse(JSON.stringify(initialEvents));
+      }
+      applyTheme(state.theme);
+      updateHeaderTitle();
+    }
+
+    function saveState() {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    }
+
+    function saveUserName() {
+      state.userName = document.getElementById('setUserName').value.trim();
+      saveState();
+      updateHeaderTitle();
+      alert(state.userName ? ('İsim kaydedildi: ' + state.userName) : 'İsim temizlendi.');
+    }
+
+    // ========== THEME ==========
+    function applyTheme(theme) {
+      state.theme = theme;
+      document.documentElement.setAttribute('data-theme', theme === 'dark' ? 'dark' : 'light');
+      document.getElementById('themeToggle').textContent = theme === 'dark' ? '☀️' : '🌙';
+      saveState();
+      if (document.getElementById('dashboard').classList.contains('active')) renderDashboard();
+    }
+
+    document.getElementById('themeToggle').addEventListener('click', () => {
+      applyTheme(state.theme === 'dark' ? 'light' : 'dark');
+    });
+
+    // ========== UI ==========
+    function showSection(name) {
+      document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+      document.getElementById(name).classList.add('active');
+      document.querySelectorAll('.nav-btn, .footer-nav button').forEach(b => {
+        b.classList.toggle('active', b.dataset.section === name);
+      });
+      if (name === 'dashboard') renderDashboard();
+      if (name === 'measurements') renderTable();
+      if (name === 'meds') { renderMeds(); renderMedInfo(); }
+      if (name === 'info') {
+        document.getElementById('setGlucoseLimit').value = state.limits.glucose;
+        document.getElementById('setHba1cLimit').value = state.limits.hba1c;
+        document.getElementById('setInsulinMin').value = state.limits.insulinMin ?? DEFAULT_LIMITS.insulinMin;
+        document.getElementById('setInsulinMax').value = state.limits.insulinMax ?? DEFAULT_LIMITS.insulinMax;
+        document.getElementById('setHomaOk').value = state.limits.homaOk ?? DEFAULT_LIMITS.homaOk;
+        document.getElementById('setHomaMild').value = state.limits.homaMild ?? DEFAULT_LIMITS.homaMild;
+        document.getElementById('setUserName').value = state.userName || '';
+      }
+      if (name === 'add' && !editingId) {
+        showAddChooser();
+      }
+    }
+
+    function showAddChooser() {
+      editingId = null;
+      document.getElementById('addChooser').style.display = 'block';
+      document.getElementById('addGlucoseCard').style.display = 'none';
+      document.getElementById('addKgCard').style.display = 'none';
+    }
+
+    function openAddType(type) {
+      const now = new Date();
+      if (type === 'event') {
+        openEventModal();
+        return;
+      }
+      document.getElementById('addChooser').style.display = 'none';
+      if (type === 'glucose') {
+        document.getElementById('addGlucoseCard').style.display = 'block';
+        document.getElementById('addKgCard').style.display = 'none';
+        document.getElementById('measForm').reset();
+        document.getElementById('mDate').value = now.toISOString().slice(0, 10);
+        document.getElementById('mTime').value = now.toTimeString().slice(0, 5);
+        document.getElementById('mYer').value = 'glukometre';
+        document.getElementById('mAcTok').value = 'ac';
+        document.getElementById('homaPreview').textContent = '—';
+        document.getElementById('addTitle').textContent = editingId ? '✏️ Şeker ölçümü düzenle' : '🩸 Şeker ölçümü';
+      } else if (type === 'kg') {
+        document.getElementById('addGlucoseCard').style.display = 'none';
+        document.getElementById('addKgCard').style.display = 'block';
+        document.getElementById('kgForm').reset();
+        document.getElementById('kDate').value = now.toISOString().slice(0, 10);
+        document.getElementById('kTime').value = now.toTimeString().slice(0, 5);
+        document.getElementById('addKgTitle').textContent = editingId ? '✏️ Kilo düzenle' : '⚖️ Kilo ölçümü';
+      }
+    }
+
+    document.querySelectorAll('.nav-btn, .footer-nav button').forEach(btn => {
+      btn.addEventListener('click', () => showSection(btn.dataset.section));
+    });
+
+    function getHourFromTime(time) {
+      if (!time) return null;
+      const m = String(time).match(/^(\d{1,2})/);
+      return m ? parseInt(m[1], 10) : null;
+    }
+
+    function matchSaatDilimi(time, dilim) {
+      if (dilim === 'all') return true;
+      const h = getHourFromTime(time);
+      if (h == null) return dilim === 'all'; // saati olmayanlar sadece "tümü"nde
+      if (dilim === 'sabah') return h >= 5 && h < 11;
+      if (dilim === 'ogle') return h >= 11 && h < 15;
+      if (dilim === 'ikindi') return h >= 15 && h < 18;
+      if (dilim === 'aksam') return h >= 18 && h < 22;
+      if (dilim === 'gece') return h >= 22 || h < 5;
+      if (dilim === 'sabah_sonrasi') return h >= 11;
+      return true;
+    }
+
+    function matchDonem(dateStr, donem) {
+      if (donem === 'all') return true;
+      const d = new Date(dateStr);
+      if (isNaN(d)) return false;
+      const now = new Date();
+      const daysMap = { '7': 7, '30': 30, '90': 90, '180': 180, '365': 365 };
+      if (daysMap[donem]) {
+        const from = new Date(now); from.setDate(from.getDate() - daysMap[donem]);
+        return d >= from;
+      }
+      if (donem === '2026') return d.getFullYear() === 2026;
+      if (donem === '2025') return d.getFullYear() === 2025;
+      if (donem === '2024') return d.getFullYear() === 2024;
+      if (donem === '2023') return d.getFullYear() <= 2023;
+      return true;
+    }
+
+    let chartFilters = { yer: 'all', actok: 'all', saat: 'all', donem: 'all', veri: 'both', dateFrom: '', dateTo: '', eventMode: 'all', eventId: '' };
+    let splitChartsOn = false;
+
+    function getChartFiltered() {
+      const { yer, actok, saat, donem, dateFrom, dateTo, eventMode, eventId } = chartFilters;
+      let eventDate = null;
+      if (eventId && eventMode && eventMode !== 'all') {
+        const ev = (state.events || []).find(e => String(e.id) === String(eventId));
+        if (ev) eventDate = ev.date;
+      }
+      return [...state.measurements]
+        .filter(m => {
+          let y = m.yer || 'hastane';
+          if (y === 'laboratuvar') y = 'hastane';
+          if (y === 'ev') y = 'glukometre';
+          if (yer !== 'all' && y !== yer) return false;
+          if (actok !== 'all' && (m.actok || 'ac') !== actok) return false;
+          if (!matchSaatDilimi(m.time, saat)) return false;
+          if (dateFrom || dateTo) {
+            if (dateFrom && m.date < dateFrom) return false;
+            if (dateTo && m.date > dateTo) return false;
+          } else if (!matchDonem(m.date, donem)) {
+            return false;
+          }
+          if (eventDate) {
+            if (eventMode === 'after' && m.date < eventDate) return false;
+            if (eventMode === 'before' && m.date > eventDate) return false;
+          }
+          return true;
+        })
+        .sort((a, b) => (a.date + (a.time || '')).localeCompare(b.date + (b.time || '')));
+    }
+
+    function setChartQuickDays(days) {
+      chartFilters.donem = String(days);
+      chartFilters.dateFrom = '';
+      chartFilters.dateTo = '';
+      document.querySelectorAll('.chart-quick').forEach(b => {
+        b.style.outline = (b.dataset.days === String(days)) ? '2px solid var(--primary)' : 'none';
+      });
+      renderChart();
+    }
+
+    function onCfDonemChange() {
+      const v = document.getElementById('cfDonem').value;
+      document.getElementById('cfDateRangeBox').style.display = (v === 'range') ? 'block' : 'none';
+    }
+
+    function openChartFilterModal() {
+      document.getElementById('cfYer').value = chartFilters.yer;
+      document.getElementById('cfAcTok').value = chartFilters.actok;
+      document.getElementById('cfSaat').value = chartFilters.saat;
+      const hasRange = !!(chartFilters.dateFrom || chartFilters.dateTo);
+      document.getElementById('cfDonem').value = hasRange ? 'range' : chartFilters.donem;
+      document.getElementById('cfVeri').value = chartFilters.veri;
+      document.getElementById('cfDateFrom').value = chartFilters.dateFrom || '';
+      document.getElementById('cfDateTo').value = chartFilters.dateTo || '';
+      document.getElementById('cfEventMode').value = chartFilters.eventMode || 'all';
+      const sel = document.getElementById('cfEventId');
+      sel.innerHTML = '<option value="">—</option>' + (state.events || [])
+        .slice().sort((a,b) => b.date.localeCompare(a.date))
+        .map(e => `<option value="${e.id}">${formatDateTR(e.date)} — ${escapeHtml(e.title)}</option>`).join('');
+      sel.value = chartFilters.eventId || '';
+      onCfDonemChange();
+      document.getElementById('chartFilterModal').classList.add('open');
+    }
+    function closeChartFilterModal() {
+      document.getElementById('chartFilterModal').classList.remove('open');
+    }
+    function applyChartFilters() {
+      const donemSel = document.getElementById('cfDonem').value;
+      let dateFrom = '', dateTo = '', donem = donemSel;
+      if (donemSel === 'range') {
+        dateFrom = document.getElementById('cfDateFrom').value || '';
+        dateTo = document.getElementById('cfDateTo').value || '';
+        donem = 'all';
+      }
+      chartFilters = {
+        yer: document.getElementById('cfYer').value,
+        actok: document.getElementById('cfAcTok').value,
+        saat: document.getElementById('cfSaat').value,
+        donem,
+        veri: document.getElementById('cfVeri').value,
+        dateFrom,
+        dateTo,
+        eventMode: document.getElementById('cfEventMode').value,
+        eventId: document.getElementById('cfEventId').value
+      };
+      document.querySelectorAll('.chart-quick').forEach(b => { b.style.outline = 'none'; });
+      closeChartFilterModal();
+      renderChart();
+    }
+    function resetChartFilters() {
+      chartFilters = { yer: 'all', actok: 'all', saat: 'all', donem: 'all', veri: 'both', dateFrom: '', dateTo: '', eventMode: 'all', eventId: '' };
+      ['cfYer','cfAcTok','cfSaat','cfDonem'].forEach(id => { const el = document.getElementById(id); if (el) el.value = 'all'; });
+      const v = document.getElementById('cfVeri'); if (v) v.value = 'both';
+      document.getElementById('cfDateFrom').value = '';
+      document.getElementById('cfDateTo').value = '';
+      onCfDonemChange();
+      document.querySelectorAll('.chart-quick').forEach(b => { b.style.outline = 'none'; });
+      closeChartFilterModal();
+      renderChart();
+    }
+
+    function toggleSplitCharts() {
+      splitChartsOn = !splitChartsOn;
+      const box = document.getElementById('splitCharts');
+      const btn = document.getElementById('btnSplitCharts');
+      box.style.display = splitChartsOn ? 'block' : 'none';
+      btn.textContent = splitChartsOn ? 'Ayrı grafikleri gizle' : 'Grafikleri ayır';
+      renderChart();
+    }
+
+    function toggleKgChart() {
+      kgChartOn = !kgChartOn;
+      const box = document.getElementById('kgChartBox');
+      const btn = document.getElementById('btnKgChart');
+      box.style.display = kgChartOn ? 'block' : 'none';
+      btn.textContent = kgChartOn ? 'Kilo grafiğini gizle' : 'Kilo grafiği';
+      renderChart();
+    }
+
+    function makeEventLinePlugin(labels) {
+      return {
+        id: 'eventLines',
+        afterDraw(chart) {
+          const evs = state.events || [];
+          if (!evs.length || !labels.length) return;
+          const { ctx, chartArea, scales } = chart;
+          const xScale = scales.x;
+          if (!xScale) return;
+          evs.forEach(ev => {
+            let idx = labels.indexOf(ev.date);
+            if (idx < 0) {
+              for (let i = 0; i < labels.length - 1; i++) {
+                if (labels[i] <= ev.date && labels[i + 1] >= ev.date) { idx = i; break; }
+              }
+            }
+            if (idx < 0) return;
+            const x = xScale.getPixelForValue(idx);
+            if (x < chartArea.left || x > chartArea.right) return;
+            ctx.save();
+            // dik kesik çizgi (kutunun altından başlar, veriyi daha az keser)
+            const title = String(ev.title || '').slice(0, 20);
+            ctx.font = 'bold 9px -apple-system, sans-serif';
+            const tw = ctx.measureText(title).width;
+            const padX = 5, boxH = 15;
+            const boxW = tw + padX * 2;
+            let bx = x - boxW / 2;
+            if (bx < chartArea.left) bx = chartArea.left + 1;
+            if (bx + boxW > chartArea.right) bx = chartArea.right - boxW - 1;
+            // en tepede (skalanın üst kenarı)
+            const by = chartArea.top + 1;
+            ctx.beginPath();
+            ctx.setLineDash([4, 3]);
+            ctx.strokeStyle = 'rgba(124,58,237,0.55)';
+            ctx.lineWidth = 1.2;
+            ctx.moveTo(x, by + boxH + 1);
+            ctx.lineTo(x, chartArea.bottom);
+            ctx.stroke();
+            // tepede ince kutu
+            ctx.setLineDash([]);
+            ctx.fillStyle = 'rgba(124,58,237,0.92)';
+            ctx.strokeStyle = '#5b21b6';
+            ctx.lineWidth = 1;
+            const r = 3;
+            ctx.beginPath();
+            ctx.moveTo(bx + r, by);
+            ctx.lineTo(bx + boxW - r, by);
+            ctx.quadraticCurveTo(bx + boxW, by, bx + boxW, by + r);
+            ctx.lineTo(bx + boxW, by + boxH - r);
+            ctx.quadraticCurveTo(bx + boxW, by + boxH, bx + boxW - r, by + boxH);
+            ctx.lineTo(bx + r, by + boxH);
+            ctx.quadraticCurveTo(bx, by + boxH, bx, by + boxH - r);
+            ctx.lineTo(bx, by + r);
+            ctx.quadraticCurveTo(bx, by, bx + r, by);
+            ctx.closePath();
+            ctx.fill();
+            ctx.stroke();
+            ctx.fillStyle = '#fff';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(title, bx + padX, by + boxH / 2);
+            ctx.restore();
+          });
+        }
+      };
+    }
+
+    function wrapNote(note, maxLen) {
+      if (!note) return [];
+      const words = String(note).split(/\s+/);
+      const lines = [];
+      let cur = '';
+      words.forEach(w => {
+        if ((cur + ' ' + w).trim().length > maxLen) {
+          if (cur) lines.push(cur);
+          cur = w;
+        } else cur = (cur + ' ' + w).trim();
+      });
+      if (cur) lines.push(cur);
+      return lines;
+    }
+
+    function renderChart() {
+      const filtered = getChartFiltered();
+      const veri = chartFilters.veri || 'both';
+      const info = document.getElementById('chartFilterInfo');
+      if (info) {
+        info.textContent = `Grafikte ${filtered.length} ölçüm gösteriliyor (toplam ${state.measurements.length})`;
+      }
+
+      const labels = filtered.map(m => m.date);
+      const glucoseData = filtered.map(m => m.glucose);
+      const hbaData = filtered.map(m => m.hba1c);
+      const kgData = filtered.map(m => m.kg);
+      const glucoseLimit = state.limits.glucose;
+      const hbaLimit = state.limits.hba1c;
+
+      const datasets = [];
+      if (veri === 'both' || veri === 'glukoz') {
+        datasets.push({
+          label: 'Glukoz',
+          data: glucoseData,
+          borderColor: '#16a34a',
+          backgroundColor: 'rgba(22,163,74,0.12)',
+          tension: 0.3,
+          pointRadius: 4,
+          pointBackgroundColor: '#16a34a',
+          pointBorderColor: '#15803d',
+          yAxisID: 'y',
+          fill: false
+        });
+        datasets.push({
+          label: 'Glukoz Sınır',
+          data: labels.map(() => glucoseLimit),
+          borderColor: '#4ade80',
+          borderDash: [4, 4],
+          borderWidth: 1.5,
+          pointRadius: 0,
+          yAxisID: 'y',
+          fill: false
+        });
+      }
+      if (veri === 'both' || veri === 'hba1c') {
+        datasets.push({
+          label: 'HbA1c',
+          data: hbaData,
+          borderColor: '#eab308',
+          backgroundColor: 'rgba(234,179,8,0.12)',
+          borderDash: [5, 5],
+          tension: 0.3,
+          pointRadius: 3,
+          pointBackgroundColor: '#eab308',
+          pointBorderColor: '#ca8a04',
+          yAxisID: 'y1',
+          fill: false
+        });
+        datasets.push({
+          label: 'HbA1c Sınır',
+          data: labels.map(() => hbaLimit),
+          borderColor: '#facc15',
+          borderDash: [4, 4],
+          borderWidth: 1.5,
+          pointRadius: 0,
+          yAxisID: 'y1',
+          fill: false
+        });
+      }
+
+      const ctx = document.getElementById('mainChart').getContext('2d');
+      if (chart) chart.destroy();
+      chart = new Chart(ctx, {
+        type: 'line',
+        data: { labels, datasets },
+        plugins: [makeEventLinePlugin(labels)],
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          interaction: { mode: 'index', intersect: false },
+          plugins: {
+            legend: { position: 'bottom', labels: { boxWidth: 12, font: { size: 10 } } },
+            tooltip: {
+              filter: (item) => !String(item.dataset.label || '').includes('Sınır'),
+              callbacks: {
+                title: (items) => formatDateTR(items[0].label),
+                afterBody: (items) => {
+                  const i = items[0].dataIndex;
+                  const m = filtered[i];
+                  if (!m) return '';
+                  const yer = (m.yer === 'glukometre' || m.yer === 'ev') ? 'G' : 'H';
+                  const at = (m.actok === 'tok') ? 'Tok' : 'Aç';
+                  const lines = [`${yer} • ${at}`];
+                  if (m.kg != null) lines.push('Kilo: ' + m.kg + ' kg');
+                  wrapNote(m.note, 28).forEach(l => lines.push(l));
+                  return lines;
+                }
+              }
+            }
+          },
+          scales: {
+            x: {
+              ticks: {
+                maxRotation: 45,
+                callback: function(val) {
+                  return formatDateTR(this.getLabelForValue(val));
+                },
+                font: { size: 9 },
+                color: '#64748b'
+              },
+              grid: { color: 'rgba(100,116,139,0.12)' }
+            },
+            y: {
+              type: 'linear',
+              position: 'left',
+              display: veri !== 'hba1c',
+              title: { display: false },
+              min: 60,
+              suggestedMax: 160,
+              ticks: {
+                color: '#16a34a',
+                font: { weight: '600' }
+              },
+              grid: { color: 'rgba(22,163,74,0.15)' }
+            },
+            y1: {
+              type: 'linear',
+              position: 'right',
+              display: veri !== 'glukoz',
+              title: { display: false },
+              min: 4,
+              max: 8,
+              ticks: {
+                color: '#ca8a04',
+                font: { weight: '600' }
+              },
+              grid: { drawOnChartArea: false }
+            }
+          }
+        }
+      });
+
+      // Ayrı grafikler
+      if (chartG) { chartG.destroy(); chartG = null; }
+      if (chartH) { chartH.destroy(); chartH = null; }
+      if (chartKg) { chartKg.destroy(); chartKg = null; }
+      if (splitChartsOn) {
+        const tipOpts = {
+          filter: (item) => !String(item.dataset.label || '').includes('Sınır'),
+          callbacks: {
+            title: (items) => formatDateTR(items[0].label),
+            afterBody: (items) => {
+              const m = filtered[items[0].dataIndex];
+              if (!m) return '';
+              const lines = [];
+              if (m.note) lines.push('Açıklama: ' + m.note);
+              return lines;
+            }
+          }
+        };
+        const gCtx = document.getElementById('chartGlukoz').getContext('2d');
+        chartG = new Chart(gCtx, {
+          type: 'line',
+          data: {
+            labels,
+            datasets: [
+              { label: 'Glukoz', data: glucoseData, borderColor: '#16a34a', pointBackgroundColor: '#16a34a', tension: 0.3, pointRadius: 3, fill: false },
+              { label: 'Glukoz Sınır', data: labels.map(() => glucoseLimit), borderColor: '#4ade80', borderDash: [4,4], pointRadius: 0, fill: false }
+            ]
+          },
+          plugins: [makeEventLinePlugin(labels)],
+          options: {
+            responsive: true, maintainAspectRatio: false,
+            plugins: { legend: { display: false }, tooltip: tipOpts },
+            scales: {
+              x: { ticks: { maxRotation: 45, callback: function(v){ return formatDateTR(this.getLabelForValue(v)); }, font: { size: 9 }, color: '#16a34a' } },
+              y: { min: 60, suggestedMax: 160, ticks: { color: '#16a34a' }, title: { display: false }, grid: { color: 'rgba(22,163,74,0.15)' } }
+            }
+          }
+        });
+        const hCtx = document.getElementById('chartHba1c').getContext('2d');
+        chartH = new Chart(hCtx, {
+          type: 'line',
+          data: {
+            labels,
+            datasets: [
+              { label: 'HbA1c', data: hbaData, borderColor: '#eab308', pointBackgroundColor: '#eab308', tension: 0.3, pointRadius: 3, borderDash: [5,5], fill: false },
+              { label: 'HbA1c Sınır', data: labels.map(() => hbaLimit), borderColor: '#facc15', borderDash: [4,4], pointRadius: 0, fill: false }
+            ]
+          },
+          plugins: [makeEventLinePlugin(labels)],
+          options: {
+            responsive: true, maintainAspectRatio: false,
+            plugins: { legend: { display: false }, tooltip: tipOpts },
+            scales: {
+              x: { ticks: { maxRotation: 45, callback: function(v){ return formatDateTR(this.getLabelForValue(v)); }, font: { size: 9 }, color: '#ca8a04' } },
+              y: { min: 4, max: 8, ticks: { color: '#ca8a04' }, title: { display: false }, grid: { color: 'rgba(202,138,4,0.12)' } }
+            }
+          }
+        });
+      }
+      if (kgChartOn) {
+        const showKg = document.getElementById('kgShowKg')?.checked !== false;
+        const showG = !!document.getElementById('kgShowG')?.checked;
+        const showH = !!document.getElementById('kgShowH')?.checked;
+        const base = getChartFiltered().sort((a, b) => (a.date + (a.time || '')).localeCompare(b.date + (b.time || '')));
+        // Seçilen serilerden en az bir değeri olan tarihler
+        const rows = base.filter(m =>
+          (showKg && m.kg != null) || (showG && m.glucose != null) || (showH && m.hba1c != null)
+        );
+        const kgLabels = rows.map(m => m.date);
+        const datasets = [];
+        const scales = {
+          x: { ticks: { maxRotation: 45, callback: function(v){ return formatDateTR(this.getLabelForValue(v)); }, font: { size: 9 } } }
+        };
+        if (showKg) {
+          datasets.push({
+            label: 'Kilo', data: rows.map(m => m.kg),
+            borderColor: '#6366f1', pointBackgroundColor: '#6366f1', tension: 0.3, pointRadius: 3, yAxisID: 'yKg', spanGaps: true, fill: false
+          });
+          scales.yKg = { type: 'linear', position: 'left', ticks: { color: '#6366f1' }, grid: { color: 'rgba(99,102,241,0.1)' } };
+        }
+        if (showG) {
+          datasets.push({
+            label: 'Glukoz', data: rows.map(m => m.glucose),
+            borderColor: '#16a34a', pointBackgroundColor: '#16a34a', tension: 0.3, pointRadius: 3, yAxisID: 'yG', spanGaps: true, fill: false
+          });
+          scales.yG = { type: 'linear', position: 'right', ticks: { color: '#16a34a' }, grid: { drawOnChartArea: !showKg } };
+        }
+        if (showH) {
+          datasets.push({
+            label: 'HbA1c', data: rows.map(m => m.hba1c),
+            borderColor: '#ca8a04', pointBackgroundColor: '#ca8a04', tension: 0.3, pointRadius: 3, borderDash: [5, 4], yAxisID: 'yH', spanGaps: true, fill: false
+          });
+          scales.yH = {
+            type: 'linear',
+            position: showG ? 'right' : 'right',
+            min: 4, max: 8,
+            ticks: { color: '#ca8a04' },
+            grid: { drawOnChartArea: false }
+          };
+        }
+        const kCtx = document.getElementById('chartKg').getContext('2d');
+        chartKg = new Chart(kCtx, {
+          type: 'line',
+          data: { labels: kgLabels, datasets },
+          plugins: [makeEventLinePlugin(kgLabels)],
+          options: {
+            responsive: true, maintainAspectRatio: false,
+            interaction: { mode: 'index', intersect: false },
+            plugins: {
+              legend: { display: datasets.length > 1, position: 'bottom', labels: { boxWidth: 10, font: { size: 10 } } }
+            },
+            scales
+          }
+        });
+      }
+    }
+
+    function renderDashboard() {
+      updateHeaderTitle();
+
+      const sorted = [...state.measurements].sort((a, b) => (a.date + (a.time || '')).localeCompare(b.date + (b.time || '')));
+      const last = [...sorted].reverse().find(m => m.glucose != null) || sorted[sorted.length - 1];
+      const lastHoma = sorted.filter(m => m.homa != null).pop();
+      const lastHba = sorted.filter(m => m.hba1c != null).pop();
+      const avg3 = calc3MonthAvg();
+
+      const grid = document.getElementById('statsGrid');
+      grid.innerHTML = `
+        <div class="stat-card ${glucoseClass(last?.glucose)}">
+          <div class="label">Son Glukoz</div>
+          <div class="value">${last ? last.glucose : '—'}</div>
+          <div class="sub">${last ? formatDateTR(last.date) : ''} • Sınır ${state.limits.glucose}</div>
+        </div>
+        <div class="stat-card ${hba1cClass(lastHba?.hba1c)}">
+          <div class="label">Son HbA1c</div>
+          <div class="value">${lastHba ? formatHba1c(lastHba.hba1c) : '—'}</div>
+          <div class="sub">${lastHba ? formatDateTR(lastHba.date) : ''} • Sınır ${state.limits.hba1c}</div>
+        </div>
+        <div class="stat-card ${lastHoma && lastHoma.homa >= (state.limits.homaMild||3) ? 'danger' : lastHoma && lastHoma.homa >= (state.limits.homaOk||2) ? 'warning' : 'good'}">
+          <div class="label">Son HOMA-IR</div>
+          <div class="value">${lastHoma ? formatDec(lastHoma.homa, 2) : '—'}</div>
+          <div class="sub">${lastHoma ? formatDateTR(lastHoma.date) : ''}</div>
+        </div>
+        <div class="stat-card">
+          <div class="label">3 Ay Ort. Glukoz</div>
+          <div class="value">${avg3 != null ? formatDec(avg3, 1) : '—'}</div>
+          <div class="sub">son 90 gün</div>
+        </div>
+      `;
+
+      renderChart();
+
+      const active = state.meds.filter(m => !m.end);
+      const prev = document.getElementById('activeMedsPreview');
+      if (active.length === 0) {
+        prev.innerHTML = '<p class="note">Aktif ilaç kaydı yok.</p>';
+      } else {
+        prev.innerHTML = active.map(m => {
+          const letter = (m.name || '?').trim().charAt(0).toUpperCase();
+          return `<div class="med-chip">
+            <div class="med-avatar">${letter}</div>
+            <div class="med-chip-body">
+              <div class="med-chip-title"><a href="#" onclick="event.preventDefault();showMedInfo('${String(m.name).replace(/'/g,"\\'")}');return false;">${escapeHtml(m.name)}</a></div>
+              <div class="med-chip-meta">${escapeHtml(m.dose)} · ${formatDateTR(m.start)}’den beri</div>
+            </div>
+            <span class="badge badge-ok">Aktif</span>
+          </div>`;
+        }).join('');
+      }
+
+      // Son 5 şeker ölçümü (kilo-only sayılmaz)
+      const last5 = [...state.measurements]
+        .filter(m => m.glucose != null)
+        .sort((a, b) => (b.date + (b.time || '')).localeCompare(a.date + (a.time || '')))
+        .slice(0, 5);
+      const last5El = document.getElementById('last5Preview');
+      if (!last5.length) {
+        last5El.innerHTML = '<p class="note">Henüz ölçüm yok.</p>';
+      } else {
+        last5El.innerHTML = `
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Tarih</th>
+                  <th>Saat</th>
+                  <th>Aç/Tok</th>
+                  <th>Glukoz</th>
+                  <th>HbA1c</th>
+                  <th>HOMA</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${last5.map(m => `
+                  <tr>
+                    <td>${formatDateTR(m.date)}</td>
+                    <td>${m.time || '—'}</td>
+                    <td>${m.glucose == null && m.kg != null ? '—' : acTokBadge(m.actok)}</td>
+                    <td>${m.glucose != null ? `<strong style="color:${m.glucose >= 126 ? 'var(--danger)' : m.glucose >= state.limits.glucose ? 'var(--accent)' : 'var(--success)'}">${m.glucose}</strong>` : '—'}</td>
+                    <td>${formatHba1c(m.hba1c)}</td>
+                    <td>${m.homa != null ? m.homa : '—'}</td>
+                  </tr>
+                `).join('')}
+              </tbody>
+            </table>
+          </div>
+        `;
+      }
+    }
+
+    function renderTable() {
+      const yerFilter = document.getElementById('filterYer').value;
+      const acTokFilter = document.getElementById('filterAcTok').value;
+      const homaFilter = document.getElementById('filterHoma').value;
+      let list = [...state.measurements];
+
+      if (yerFilter !== 'all') {
+        list = list.filter(m => {
+          const y = m.yer === 'laboratuvar' ? 'hastane' : (m.yer === 'ev' ? 'glukometre' : m.yer);
+          return y === yerFilter;
+        });
+      }
+      if (acTokFilter !== 'all') list = list.filter(m => (m.actok || 'ac') === acTokFilter);
+      if (homaFilter === 'var') list = list.filter(m => m.homa != null);
+      if (homaFilter === 'yok') list = list.filter(m => m.homa == null);
+      // Varsayılan: sadece-kilo kayıtlarını gizle
+      const showKg = document.getElementById('filterShowKg')?.checked;
+      if (!showKg) {
+        list = list.filter(m => m.glucose != null);
+      }
+
+      // Olay + ölçüm birleşik zaman çizelgesi
+      const events = (state.events || []).map(e => ({ ...e, _type: 'event' }));
+      const measRows = list.map(m => ({ ...m, _type: 'meas' }));
+      const combined = [...measRows, ...events].sort((a, b) => {
+        const da = (a.date || '') + (a.time || '');
+        const db = (b.date || '') + (b.time || '');
+        return db.localeCompare(da);
+      });
+
+      const tbody = document.querySelector('#measTable tbody');
+      tbody.innerHTML = combined.map(row => {
+        if (row._type === 'event') {
+          return `<tr class="event-row">
+            <td colspan="10">📌 ${formatDateTR(row.date)} — <strong>${escapeHtml(row.title)}</strong></td>
+            <td style="white-space:nowrap">
+              <button class="btn btn-sm btn-secondary" onclick="editEvent(${row.id})">✏️</button>
+              <button class="btn btn-sm btn-danger" onclick="deleteEvent(${row.id})">🗑</button>
+            </td>
+          </tr>`;
+        }
+        const m = row;
+        return `<tr>
+          <td>${formatDateTR(m.date)}</td>
+          <td>${m.time || '—'}</td>
+          <td>${m.glucose == null && m.kg != null ? '—' : acTokBadge(m.actok)}</td>
+          <td>${m.glucose != null ? `<strong style="color:${m.glucose >= 126 ? 'var(--danger)' : m.glucose >= state.limits.glucose ? 'var(--accent)' : 'var(--success)'}">${m.glucose}</strong>` : '—'}</td>
+          <td style="white-space:nowrap">${formatHba1c(m.hba1c)}</td>
+          <td>${m.insulin != null ? formatDec(m.insulin, 2) : '—'}</td>
+          <td style="white-space:nowrap">${formatHoma(m.homa)}</td>
+          <td>${m.kg != null ? formatDec(m.kg, 1) : '—'}</td>
+          <td>${yerOrTypeBadge(m)}</td>
+          <td class="note-cell">${m.note ? `<a href="#" onclick="event.preventDefault();showNoteById(${m.id});return false;" style="color:var(--primary);">${escapeHtml(m.note.length > 18 ? m.note.slice(0,18)+'…' : m.note)}</a>` : '—'}</td>
+          <td style="white-space:nowrap">
+            <button class="btn btn-sm btn-secondary" onclick="editMeas(${m.id})">✏️</button>
+            <button class="btn btn-sm btn-danger" onclick="deleteMeas(${m.id})">🗑</button>
+          </td>
+        </tr>`;
+      }).join('') || '<tr><td colspan="11" style="text-align:center;padding:16px;color:var(--text-muted)">Kayıt bulunamadı</td></tr>';
+    }
+
+    let editingEventId = null;
+    function openEventModal(id) {
+      editingEventId = id || null;
+      const titleEl = document.querySelector('#eventModal h3');
+      if (id) {
+        const ev = (state.events || []).find(e => e.id === id);
+        if (!ev) return;
+        document.getElementById('evDate').value = ev.date;
+        document.getElementById('evTitle').value = ev.title || '';
+        if (titleEl) titleEl.textContent = 'Olay Düzenle';
+      } else {
+        document.getElementById('evDate').value = new Date().toISOString().slice(0, 10);
+        document.getElementById('evTitle').value = '';
+        if (titleEl) titleEl.textContent = 'Olay Ekle';
+      }
+      document.getElementById('eventModal').classList.add('open');
+    }
+    function closeEventModal() {
+      editingEventId = null;
+      document.getElementById('eventModal').classList.remove('open');
+    }
+    function saveEvent() {
+      const date = document.getElementById('evDate').value;
+      const title = document.getElementById('evTitle').value.trim();
+      if (!date || !title) { alert('Tarih ve olay gerekli'); return; }
+      if (!state.events) state.events = [];
+      if (editingEventId) {
+        const idx = state.events.findIndex(e => e.id === editingEventId);
+        if (idx >= 0) state.events[idx] = { ...state.events[idx], date, title };
+      } else {
+        state.events.push({ id: Date.now(), date, title });
+      }
+      saveState();
+      closeEventModal();
+      renderTable();
+      renderChart();
+    }
+    function editEvent(id) { openEventModal(id); }
+    function deleteEvent(id) {
+      if (!confirm('Bu olayı sil?')) return;
+      state.events = (state.events || []).filter(e => e.id !== id);
+      saveState();
+      renderTable();
+      renderChart();
+    }
+
+    document.getElementById('filterYer').addEventListener('change', renderTable);
+    document.getElementById('filterAcTok').addEventListener('change', renderTable);
+    document.getElementById('filterHoma').addEventListener('change', renderTable);
+
+    function escapeHtml(s) {
+      return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+    }
+
+    function showNoteById(id) {
+      const m = state.measurements.find(x => x.id === id);
+      document.getElementById('notePopupModal').querySelector('h3').textContent = 'Açıklama';
+      document.getElementById('notePopupBody').textContent = (m && m.note) ? m.note : '';
+      document.getElementById('notePopupModal').classList.add('open');
+    }
+    function closeNotePopup() {
+      document.getElementById('notePopupModal').classList.remove('open');
+    }
+
+    function showMedInfo(name) {
+      const info = medProspectus[name] || { etken: '—', grup: '—', neIcin: 'Bu ilaç için kayıtlı özet bilgi yok.', not: '' };
+      document.getElementById('medInfoTitle').textContent = name;
+      document.getElementById('medInfoBody').innerHTML =
+        '<p><strong>Etken madde:</strong> ' + escapeHtml(info.etken) + '</p>' +
+        '<p><strong>Grup:</strong> ' + escapeHtml(info.grup) + '</p>' +
+        '<p><strong>Ne için:</strong> ' + escapeHtml(info.neIcin) + '</p>' +
+        (info.not ? '<p><em>' + escapeHtml(info.not) + '</em></p>' : '');
+      document.getElementById('medInfoModal').classList.add('open');
+    }
+    function closeMedInfo() {
+      document.getElementById('medInfoModal').classList.remove('open');
+    }
+
+    function renderMeds() {
+      const list = document.getElementById('medsList');
+      const sorted = [...state.meds].sort((a, b) => {
+        if (!a.end && b.end) return -1;
+        if (a.end && !b.end) return 1;
+        return (b.start || '').localeCompare(a.start || '');
+      });
+      const typeLabel = { diyabet: 'Diyabet', tansiyon: 'Tansiyon', diger: 'Diğer' };
+      list.innerHTML = sorted.map(m => {
+        const letter = (m.name || '?').trim().charAt(0).toUpperCase();
+        const stopped = !!m.end;
+        return `<div class="med-chip ${stopped ? 'stopped' : ''}">
+          <div class="med-avatar">${letter}</div>
+          <div class="med-chip-body">
+            <div class="med-chip-title">
+              <a href="#" onclick="event.preventDefault();showMedInfo('${String(m.name).replace(/'/g,"\\'")}');return false;">${escapeHtml(m.name)}</a>
+              ${stopped ? '<span class="badge badge-bad" style="margin-left:6px">Kesildi</span>' : '<span class="badge badge-ok" style="margin-left:6px">Aktif</span>'}
+            </div>
+            <div class="med-chip-meta">${escapeHtml(m.dose)} · ${typeLabel[m.type] || m.type || ''}</div>
+            <div class="med-chip-meta">${formatDateTR(m.start)}${m.end ? ' → ' + formatDateTR(m.end) : ' → devam'}</div>
+          </div>
+          <div class="med-chip-actions">
+            <button class="btn btn-sm btn-secondary" onclick="editMed(${m.id})">✏️</button>
+            <button class="btn btn-sm btn-danger" onclick="deleteMed(${m.id})">🗑</button>
+          </div>
+        </div>`;
+      }).join('') || '<p class="note" style="text-align:center;padding:20px">Henüz ilaç kaydı yok.</p>';
+    }
+
+    function renderMedInfo() { /* bilgi artık tıklanınca popup */ }
+
+    // ========== FORM HANDLERS ==========
+    document.getElementById('mGlucose').addEventListener('input', updateHomaPreview);
+    document.getElementById('mInsulin').addEventListener('input', updateHomaPreview);
+
+    function updateHomaPreview() {
+      const g = parseNum(document.getElementById('mGlucose').value);
+      const i = parseNum(document.getElementById('mInsulin').value);
+      const h = calcHoma(g, i);
+      const el = document.getElementById('homaPreview');
+      if (h == null) {
+        el.textContent = '—';
+      } else {
+        el.innerHTML = formatHoma(h);
+      }
+    }
+
+    document.getElementById('measForm').addEventListener('submit', function(e) {
+      e.preventDefault();
+      const glucose = parseNum(document.getElementById('mGlucose').value);
+      const insulin = parseNum(document.getElementById('mInsulin').value);
+      const hba1c = parseNum(document.getElementById('mHba1c').value);
+      const kg = parseNum(document.getElementById('mKg').value);
+      const actok = document.getElementById('mAcTok').value;
+      if (glucose == null) {
+        alert('Şeker değeri gerekli.');
+        return;
+      }
+      const homa = (actok === 'ac') ? calcHoma(glucose, insulin) : null;
+
+      const entry = {
+        id: editingId || Date.now(),
+        date: document.getElementById('mDate').value,
+        time: document.getElementById('mTime').value || '',
+        glucose,
+        hba1c,
+        insulin,
+        homa,
+        kg,
+        yer: document.getElementById('mYer').value,
+        actok,
+        note: document.getElementById('mNote').value.trim()
+      };
+
+      if (editingId) {
+        const idx = state.measurements.findIndex(m => m.id === editingId);
+        if (idx >= 0) state.measurements[idx] = entry;
+      } else {
+        state.measurements.push(entry);
+      }
+      saveState();
+      editingId = null;
+      alert('Şeker ölçümü kaydedildi ✓');
+      showSection('measurements');
+    });
+
+    document.getElementById('kgForm').addEventListener('submit', function(e) {
+      e.preventDefault();
+      const kg = parseNum(document.getElementById('kKg').value);
+      if (kg == null) {
+        alert('Kilo gerekli.');
+        return;
+      }
+      const entry = {
+        id: editingId || Date.now(),
+        date: document.getElementById('kDate').value,
+        time: document.getElementById('kTime').value || '',
+        glucose: null,
+        hba1c: null,
+        insulin: null,
+        homa: null,
+        kg,
+        yer: null,
+        actok: null,
+        note: document.getElementById('kNote').value.trim()
+      };
+      if (editingId) {
+        const idx = state.measurements.findIndex(m => m.id === editingId);
+        if (idx >= 0) state.measurements[idx] = entry;
+      } else {
+        state.measurements.push(entry);
+      }
+      saveState();
+      editingId = null;
+      alert('Kilo kaydı eklendi ✓');
+      showSection('measurements');
+    });
+
+    function editMeas(id) {
+      const m = state.measurements.find(x => x.id === id);
+      if (!m) return;
+      editingId = id;
+      showSection('add');
+      // Sadece kilo kaydı mı?
+      if (m.glucose == null && m.kg != null) {
+        document.getElementById('addChooser').style.display = 'none';
+        document.getElementById('addGlucoseCard').style.display = 'none';
+        document.getElementById('addKgCard').style.display = 'block';
+        document.getElementById('addKgTitle').textContent = '✏️ Kilo düzenle';
+        document.getElementById('kDate').value = m.date;
+        document.getElementById('kTime').value = m.time || '';
+        document.getElementById('kKg').value = m.kg ?? '';
+        document.getElementById('kNote').value = m.note || '';
+        return;
+      }
+      document.getElementById('addChooser').style.display = 'none';
+      document.getElementById('addGlucoseCard').style.display = 'block';
+      document.getElementById('addKgCard').style.display = 'none';
+      document.getElementById('addTitle').textContent = '✏️ Şeker ölçümü düzenle';
+      document.getElementById('mDate').value = m.date;
+      document.getElementById('mTime').value = m.time || '';
+      document.getElementById('mGlucose').value = m.glucose ?? '';
+      document.getElementById('mHba1c').value = m.hba1c ?? '';
+      document.getElementById('mInsulin').value = m.insulin ?? '';
+      let yer = m.yer || 'hastane';
+      if (yer === 'laboratuvar') yer = 'hastane';
+      if (yer === 'ev') yer = 'glukometre';
+      document.getElementById('mYer').value = yer;
+      document.getElementById('mAcTok').value = m.actok || 'ac';
+      document.getElementById('mKg').value = m.kg ?? '';
+      document.getElementById('mNote').value = m.note || '';
+      updateHomaPreview();
+    }
+
+    function cancelEdit() {
+      editingId = null;
+      showAddChooser();
+    }
+
+    function deleteMeas(id) {
+      if (!confirm('Bu ölçümü silmek istediğinize emin misiniz?')) return;
+      state.measurements = state.measurements.filter(m => m.id !== id);
+      saveState();
+      renderTable();
+      renderDashboard();
+    }
+
+    // Meds
+    function openMedModal(id) {
+      document.getElementById('medForm').reset();
+      document.getElementById('medId').value = id || '';
+      document.getElementById('medModalTitle').textContent = id ? 'İlaç Düzenle' : 'İlaç Ekle';
+      if (id) {
+        const m = state.meds.find(x => x.id === id);
+        if (m) {
+          document.getElementById('medName').value = m.name;
+          document.getElementById('medDose').value = m.dose;
+          document.getElementById('medStart').value = m.start;
+          document.getElementById('medEnd').value = m.end || '';
+          document.getElementById('medType').value = m.type;
+        }
+      }
+      document.getElementById('medModal').classList.add('open');
+    }
+    function closeMedModal() {
+      document.getElementById('medModal').classList.remove('open');
+    }
+    function editMed(id) { openMedModal(id); }
+
+    document.getElementById('medForm').addEventListener('submit', function(e) {
+      e.preventDefault();
+      const id = document.getElementById('medId').value;
+      const entry = {
+        id: id ? parseInt(id) : Date.now(),
+        name: document.getElementById('medName').value.trim(),
+        dose: document.getElementById('medDose').value.trim(),
+        start: document.getElementById('medStart').value,
+        end: document.getElementById('medEnd').value || null,
+        type: document.getElementById('medType').value
+      };
+      if (id) {
+        const idx = state.meds.findIndex(m => m.id == id);
+        if (idx >= 0) state.meds[idx] = entry;
+      } else {
+        state.meds.push(entry);
+      }
+      saveState();
+      closeMedModal();
+      renderMeds();
+      renderMedInfo();
+      renderDashboard();
+    });
+
+    function deleteMed(id) {
+      if (!confirm('Bu ilaç kaydını silmek istediğinize emin misiniz?')) return;
+      state.meds = state.meds.filter(m => m.id !== id);
+      saveState();
+      renderMeds();
+      renderMedInfo();
+      renderDashboard();
+    }
+
+    // Limits
+    function saveLimits() {
+      const g = parseNum(document.getElementById('setGlucoseLimit').value);
+      const h = parseNum(document.getElementById('setHba1cLimit').value);
+      const imin = parseNum(document.getElementById('setInsulinMin').value);
+      const imax = parseNum(document.getElementById('setInsulinMax').value);
+      const hok = parseNum(document.getElementById('setHomaOk').value);
+      const hmild = parseNum(document.getElementById('setHomaMild').value);
+      if (g) state.limits.glucose = g;
+      if (h) state.limits.hba1c = h;
+      if (imin != null) state.limits.insulinMin = imin;
+      if (imax != null) state.limits.insulinMax = imax;
+      if (hok != null) state.limits.homaOk = hok;
+      if (hmild != null) state.limits.homaMild = hmild;
+      saveState();
+      alert('Sınırlar kaydedildi ✓');
+      renderDashboard();
+      renderTable();
+    }
+
+    // Export / Import
+    function exportData() {
+      // Sadece gerçek veriyi yaz; kilo satırına yer/aç uydurma
+      const payload = {
+        version: 3,
+        exportedAt: new Date().toISOString(),
+        userName: state.userName || '',
+        limits: { ...state.limits },
+        theme: state.theme || 'light',
+        measurements: (state.measurements || []).map(m => sanitizeMeasurement(m)),
+        meds: JSON.parse(JSON.stringify(state.meds || [])),
+        events: JSON.parse(JSON.stringify(state.events || []))
+      };
+      const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `diyabet-takip-${new Date().toISOString().slice(0,10)}.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+    }
+
+    function exportCSV() {
+      const header = 'Tarih;Saat;Ölçüm Yeri;Aç/Tok;Glukoz;HbA1c;İnsülin;HOMA-IR;Kilo;Not\n';
+      const rows = state.measurements
+        .sort((a,b) => (a.date+a.time).localeCompare(b.date+b.time))
+        .map(m => {
+          let yer = '';
+          if (m.glucose == null && m.kg != null) yer = 'K';
+          else if (m.yer === 'ev' || m.yer === 'glukometre') yer = 'G';
+          else if (m.yer === 'hastane' || m.yer === 'laboratuvar') yer = 'H';
+          const actok = m.actok === 'tok' ? 'Tok' : (m.actok === 'ac' ? 'Aç' : '');
+          return `${formatDateTR(m.date)};${m.time||''};${yer};${actok};${m.glucose??''};${m.hba1c??''};${m.insulin??''};${m.homa??''};${m.kg??''};${(m.note||'').replace(/;/g,',')}`;
+        }).join('\n');
+      const blob = new Blob(['\ufeff' + header + rows], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `diyabet-olcumler-${new Date().toISOString().slice(0,10)}.csv`;
+      a.click();
+      URL.revokeObjectURL(url);
+    }
+
+    // Parse flexible date: 22.01.2019, 22/01/2019, 2019-01-22, Excel serial...
+    function parseFlexibleDate(val) {
+      if (val == null || val === '') return null;
+      if (typeof val === 'number') {
+        // Excel serial date
+        const utc = (val - 25569) * 86400 * 1000;
+        const d = new Date(utc);
+        if (!isNaN(d)) return d.toISOString().slice(0, 10);
+      }
+      const s = String(val).trim();
+      // YYYY-MM-DD
+      if (/^\d{4}-\d{2}-\d{2}/.test(s)) return s.slice(0, 10);
+      // DD.MM.YYYY or DD/MM/YYYY
+      const m1 = s.match(/^(\d{1,2})[./](\d{1,2})[./](\d{4})/);
+      if (m1) {
+        const d = m1[1].padStart(2,'0');
+        const mo = m1[2].padStart(2,'0');
+        return `${m1[3]}-${mo}-${d}`;
+      }
+      // Excel sometimes gives Date object string
+      const d2 = new Date(s);
+      if (!isNaN(d2.getTime())) return d2.toISOString().slice(0, 10);
+      return null;
+    }
+
+    function parseFlexibleTime(val) {
+      if (val == null || val === '') return '';
+      if (typeof val === 'number') {
+        // Excel time fraction
+        const totalMinutes = Math.round(val * 24 * 60);
+        const h = Math.floor(totalMinutes / 60) % 24;
+        const m = totalMinutes % 60;
+        return `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}`;
+      }
+      const s = String(val).trim();
+      const m = s.match(/(\d{1,2}):(\d{2})/);
+      if (m) return `${m[1].padStart(2,'0')}:${m[2]}`;
+      return s.slice(0, 5);
+    }
+
+    function normalizeYer(val) {
+      if (val == null || val === '') return null;
+      const s = String(val).toLowerCase().trim();
+      if (s === 'k' || s === 'kilo') return null;
+      if (s.includes('glukometre') || s === 'g' || s.includes('ev') || s.includes('kit') || s.includes('parmak') || s.includes('home')) return 'glukometre';
+      if (s.includes('hastane') || s === 'h' || s.includes('lab')) return 'hastane';
+      return null;
+    }
+
+    function normalizeAcTok(val) {
+      if (val == null || val === '') return null;
+      const s = String(val).toLowerCase().trim();
+      if (s.includes('tok') || s.includes('post') || s.includes('yemek')) return 'tok';
+      if (s.includes('aç') || s.includes('ac') || s.includes('fast')) return 'ac';
+      return null;
+    }
+
+    /** İçe/dışa aktarımda tek satırı temizle — olmayan alanı uydurma */
+    function sanitizeMeasurement(m) {
+      const glucose = m.glucose != null && m.glucose !== '' ? parseNum(m.glucose) : null;
+      const kg = m.kg != null && m.kg !== '' ? parseNum(m.kg) : null;
+      const insulin = m.insulin != null && m.insulin !== '' ? parseNum(m.insulin) : null;
+      const hba1c = m.hba1c != null && m.hba1c !== '' ? parseNum(m.hba1c) : null;
+      const kgOnly = glucose == null && kg != null;
+      let yer = m.yer;
+      let actok = m.actok;
+      if (kgOnly) {
+        yer = null;
+        actok = null;
+      } else {
+        if (yer === 'laboratuvar') yer = 'hastane';
+        if (yer === 'ev') yer = 'glukometre';
+        if (yer !== 'hastane' && yer !== 'glukometre') yer = yer || null;
+        if (actok !== 'ac' && actok !== 'tok') actok = actok || null;
+      }
+      const homa = (!kgOnly && actok === 'ac') ? (m.homa != null ? parseNum(m.homa) : calcHoma(glucose, insulin)) : null;
+      return {
+        id: m.id || (Date.now() + Math.random() * 10000),
+        date: m.date,
+        time: m.time || '',
+        glucose,
+        hba1c,
+        insulin,
+        homa,
+        kg,
+        yer,
+        actok,
+        note: String(m.note || '').trim()
+      };
+    }
+
+    function findCol(row, possibleNames) {
+      const keys = Object.keys(row);
+      for (const name of possibleNames) {
+        const found = keys.find(k => k.toLowerCase().replace(/\s/g,'').includes(name.toLowerCase().replace(/\s/g,'')));
+        if (found) return row[found];
+      }
+      return null;
+    }
+
+    function rowsToMeasurements(rows) {
+      const result = [];
+      for (const row of rows) {
+        const dateRaw = findCol(row, ['tarih', 'date', 'gün', 'gun']);
+        const date = parseFlexibleDate(dateRaw);
+        if (!date) continue;
+
+        const glucose = parseNum(findCol(row, ['glukoz', 'glucose', 'seker', 'şeker', 'kanşekeri']));
+        const kg = parseNum(findCol(row, ['kilo', 'kg', 'weight']));
+        if (glucose == null && kg == null) continue;
+
+        const hba1c = parseNum(findCol(row, ['hba1c', 'hb a1c', 'a1c', 'glike', 'hemoglobin']));
+        const insulin = parseNum(findCol(row, ['insülin', 'insulin', 'insülin']));
+        const time = parseFlexibleTime(findCol(row, ['saat', 'time', 'zaman']));
+        let yer = normalizeYer(findCol(row, ['yer', 'ölçüm yeri', 'olcum yeri', 'kaynak', 'location', 'place']));
+        let actok = normalizeAcTok(findCol(row, ['aç', 'ac', 'tok', 'açlık', 'aclik', 'tokluk', 'aç/tok', 'ac/tok', 'durum', 'fasting']));
+        const note = findCol(row, ['not', 'note', 'açıklama', 'aciklama']) || '';
+        if (glucose == null && kg != null) { yer = null; actok = null; }
+        const homa = (glucose != null && actok === 'ac') ? calcHoma(glucose, insulin) : null;
+
+        result.push(sanitizeMeasurement({
+          id: Date.now() + Math.random() * 10000,
+          date,
+          time: time || '',
+          glucose,
+          hba1c,
+          insulin,
+          actok,
+          homa,
+          kg,
+          yer,
+          note: String(note || '').trim()
+        }));
+      }
+      return result;
+    }
+
+    function applyImportedMeasurements(newMeas, mode) {
+      if (!newMeas.length) {
+        alert('Dosyadan geçerli ölçüm bulunamadı. Sütun adlarını kontrol edin (Tarih, Glukoz vb.).');
+        return;
+      }
+
+      if (mode === 'sil' || mode === 'yukle') {
+        state.measurements = newMeas;
+      } else {
+        // ekle – append, avoid exact duplicates by date+time+glucose
+        const existingKeys = new Set(state.measurements.map(m => `${m.date}|${m.time}|${m.glucose}`));
+        let added = 0;
+        for (const m of newMeas) {
+          const key = `${m.date}|${m.time}|${m.glucose}`;
+          if (!existingKeys.has(key)) {
+            state.measurements.push(m);
+            existingKeys.add(key);
+            added++;
+          }
+        }
+        alert(`${added} yeni ölçüm eklendi (${newMeas.length - added} tekrar atlandı).`);
+        saveState();
+        showSection('measurements');
+        return;
+      }
+
+      saveState();
+      alert(`${newMeas.length} ölçüm yüklendi.`);
+      showSection('measurements');
+    }
+
+    function handleImportFile() {
+      const input = document.getElementById('importExcelFile');
+      const file = input.files[0];
+      if (!file) {
+        alert('Lütfen bir dosya seçin.');
+        return;
+      }
+      const mode = document.getElementById('importMode').value;
+      const name = file.name.toLowerCase();
+
+      if (mode === 'sil') {
+        if (!confirm('Önce TÜM mevcut ölçümler silinecek, sonra dosyadaki veriler yüklenecek. Emin misiniz?')) return;
+      }
+      if (mode === 'yukle') {
+        if (!confirm('Mevcut ölçümlerin üzerine yazılacak (eski ölçümler silinir). Emin misiniz?')) return;
+      }
+
+      if (name.endsWith('.json')) {
+        const reader = new FileReader();
+        reader.onload = function(ev) {
+          try {
+            const data = JSON.parse(ev.target.result);
+            if (!data.measurements || !Array.isArray(data.measurements)) {
+              alert('Geçersiz JSON: measurements dizisi yok.');
+              return;
+            }
+            const cleaned = data.measurements.map(m => sanitizeMeasurement({
+              ...m,
+              id: mode === 'ekle' ? (Date.now() + Math.random() * 10000) : (m.id || Date.now() + Math.random() * 10000)
+            })).filter(m => m.date && (m.glucose != null || m.kg != null));
+
+            if (mode === 'ekle') {
+              applyImportedMeasurements(cleaned, 'ekle');
+            } else {
+              state.measurements = cleaned;
+              if (Array.isArray(data.meds)) state.meds = data.meds;
+              if (Array.isArray(data.events)) state.events = data.events;
+              if (data.limits && typeof data.limits === 'object') state.limits = { ...DEFAULT_LIMITS, ...data.limits };
+              if (data.userName != null) state.userName = data.userName;
+              if (data.theme) state.theme = data.theme;
+              saveState();
+              applyTheme(state.theme);
+              updateHeaderTitle();
+              alert('JSON yüklendi: ' + cleaned.length + ' ölçüm' +
+                (data.meds ? ', ilaçlar' : '') +
+                (data.events ? ', olaylar' : '') + '.');
+              showSection('dashboard');
+            }
+          } catch (err) {
+            alert('JSON okunamadı: ' + err.message);
+          }
+        };
+        reader.readAsText(file);
+        input.value = '';
+        return;
+      }
+
+      // Excel or CSV
+      const reader = new FileReader();
+      reader.onload = function(ev) {
+        try {
+          const data = new Uint8Array(ev.target.result);
+          const workbook = XLSX.read(data, { type: 'array', cellDates: true });
+          const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
+          const rows = XLSX.utils.sheet_to_json(firstSheet, { defval: null });
+          const measurements = rowsToMeasurements(rows);
+          applyImportedMeasurements(measurements, mode);
+        } catch (err) {
+          alert('Dosya okunamadı: ' + err.message);
+        }
+      };
+      reader.readAsArrayBuffer(file);
+      input.value = '';
+    }
+
+    function clearAllData() {
+      localStorage.removeItem(STORAGE_KEY);
+      localStorage.removeItem('diyabetTakip_v1');
+      state = { measurements: [], meds: [], events: [], limits: { ...DEFAULT_LIMITS }, theme: state.theme, userName: state.userName || '' };
+      updateHeaderTitle();
+      showSection('dashboard');
+    }
+
+    function shareAsPdf() {
+      const content = document.getElementById('shareContent').value;
+      const scope = document.getElementById('shareScope').value;
+      let list = [...state.measurements];
+      const now = new Date();
+      if (scope === '90' || scope === '30' || scope === '7') {
+        const from = new Date(now); from.setDate(from.getDate() - parseInt(scope, 10));
+        list = list.filter(m => new Date(m.date) >= from);
+      } else if (scope === 'chart') {
+        list = getChartFiltered();
+      }
+      list.sort((a,b) => (a.date+(a.time||'')).localeCompare(b.date+(b.time||'')));
+      const name = (state.userName || '').trim() || 'Diyabet Takip';
+
+      // Grafik görselleri (ana + varsa ayrı/kilo)
+      let chartImgs = '';
+      if (content === 'both' || content === 'chart') {
+        const canvases = [
+          { el: document.getElementById('mainChart'), title: 'Ana grafik' },
+          { el: document.getElementById('chartGlukoz'), title: 'Glukoz' },
+          { el: document.getElementById('chartHba1c'), title: 'HbA1c' },
+          { el: document.getElementById('chartKg'), title: 'Kilo' }
+        ];
+        canvases.forEach(c => {
+          if (!c.el) return;
+          const box = c.el.closest('[id]');
+          // sadece görünür olanları al
+          if (c.el.id !== 'mainChart') {
+            const parent = c.el.closest('#splitCharts, #kgChartBox');
+            if (parent && parent.style.display === 'none') return;
+          }
+          try {
+            const url = c.el.toDataURL('image/png');
+            chartImgs += `<div style="margin:12px 0"><div style="font-size:12px;font-weight:600;margin-bottom:4px">${c.title}</div><img src="${url}" style="max-width:100%;height:auto;border:1px solid #ccfbf1;border-radius:8px"/></div>`;
+          } catch (e) {}
+        });
+        if (!chartImgs) {
+          // filtreye göre grafik yoksa mevcut ana canvas
+          try {
+            const url = document.getElementById('mainChart').toDataURL('image/png');
+            chartImgs = `<div style="margin:12px 0"><img src="${url}" style="max-width:100%;border:1px solid #ccfbf1;border-radius:8px"/></div>`;
+          } catch (e) {}
+        }
+      }
+
+      let tableHtml = '';
+      if (content === 'both' || content === 'data') {
+        const rows = list.map(m => {
+          const gCol = m.glucose >= 126 ? '#dc2626' : m.glucose >= state.limits.glucose ? '#ca8a04' : '#16a34a';
+          const hCol = hba1cColor(m.hba1c);
+          const hoCol = homaColor(m.homa);
+          return `<tr>
+            <td>${formatDateTR(m.date)}</td><td>${m.time||'—'}</td>
+            <td>${m.actok==='tok'?'Tok':'Aç'}</td>
+            <td style="color:${gCol};font-weight:700">${m.glucose??'—'}</td>
+            <td style="color:${hCol};font-weight:700">${m.hba1c!=null?formatDec(m.hba1c,1):'—'}${m.hba1c!=null?' <span style="font-size:11px">('+hba1cToEag(m.hba1c)+')</span>':''}</td>
+            <td>${m.insulin!=null?formatDec(m.insulin,2):'—'}</td>
+            <td style="color:${hoCol};font-weight:700">${m.homa!=null?formatDec(m.homa,2):'—'}</td>
+            <td>${m.kg!=null?formatDec(m.kg,1):'—'}</td>
+            <td>${(m.yer==='glukometre'||m.yer==='ev')?'G':'H'}</td>
+            <td style="text-align:left;font-size:11px">${escapeHtml(m.note||'')}</td>
+          </tr>`;
+        }).join('');
+        const evRows = (state.events||[]).map(e =>
+          `<tr style="background:#eef2ff"><td colspan="10" style="text-align:left">📌 ${formatDateTR(e.date)} — ${escapeHtml(e.title)}</td></tr>`
+        ).join('');
+        tableHtml = `<div style="overflow-x:auto"><table style="border-collapse:collapse;width:100%;font-size:12px"><thead><tr>
+          <th style="background:#0f766e;color:#fff;padding:6px;border:1px solid #99f6e4">Tarih</th><th style="background:#0f766e;color:#fff;padding:6px;border:1px solid #99f6e4">Saat</th><th style="background:#0f766e;color:#fff;padding:6px;border:1px solid #99f6e4">A-T</th><th style="background:#0f766e;color:#fff;padding:6px;border:1px solid #99f6e4">Glukoz</th><th style="background:#0f766e;color:#fff;padding:6px;border:1px solid #99f6e4">HbA1c</th><th style="background:#0f766e;color:#fff;padding:6px;border:1px solid #99f6e4">İnsülin</th><th style="background:#0f766e;color:#fff;padding:6px;border:1px solid #99f6e4">HOMA</th><th style="background:#0f766e;color:#fff;padding:6px;border:1px solid #99f6e4">Kilo</th><th style="background:#0f766e;color:#fff;padding:6px;border:1px solid #99f6e4">Yer</th><th style="background:#0f766e;color:#fff;padding:6px;border:1px solid #99f6e4">Not</th>
+        </tr></thead><tbody>${rows}${evRows}</tbody></table></div>`;
+      }
+
+      const body = `
+        <div style="font-weight:700;font-size:1.05rem;margin-bottom:4px">🩺 ${escapeHtml(name)} – Diyabet Takip</div>
+        <div style="color:var(--text-muted);font-size:0.75rem;margin-bottom:10px">${new Date().toLocaleString('tr-TR')} · ${list.length} ölçüm</div>
+        ${chartImgs}
+        ${tableHtml}
+        <p style="margin-top:12px;font-size:11px;color:var(--text-muted)">G=Glukometre H=Hastane · Bilgilendirme amaçlıdır.</p>`;
+      document.getElementById('sharePreviewBody').innerHTML = body;
+      document.getElementById('shareModal').classList.add('open');
+    }
+
+    function closeShareModal() {
+      document.getElementById('shareModal').classList.remove('open');
+    }
+
+    function getShareHtmlDoc() {
+      const body = document.getElementById('sharePreviewBody').innerHTML;
+      return '<!DOCTYPE html><html lang="tr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Diyabet Takip</title>' +
+        '<style>body{font-family:-apple-system,Segoe UI,sans-serif;padding:16px;color:#134e4a;font-size:13px}' +
+        'table{border-collapse:collapse;width:100%}th,td{border:1px solid #99f6e4;padding:5px;text-align:center}' +
+        'img{max-width:100%;height:auto}</style></head><body>' + body + '</body></html>';
+    }
+
+    function downloadShareHtml() {
+      try {
+        const blob = new Blob([getShareHtmlDoc()], { type: 'text/html;charset=utf-8' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'diyabet-takip-' + new Date().toISOString().slice(0, 10) + '.html';
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        setTimeout(() => URL.revokeObjectURL(url), 1500);
+      } catch (e) {
+        alert('İndirme başarısız. Tarayıcı engelliyor olabilir.');
+      }
+    }
+
+    async function nativeSharePreview() {
+      const name = (state.userName || '').trim() || 'Diyabet Takip';
+      const text = name + ' – Diyabet Takip özeti\nTarih: ' + new Date().toLocaleString('tr-TR');
+      const files = [];
+      // Ana grafik PNG (varsa)
+      try {
+        const canvas = document.getElementById('mainChart');
+        if (canvas) {
+          const blob = await new Promise(res => canvas.toBlob(res, 'image/png'));
+          if (blob) files.push(new File([blob], 'grafik.png', { type: 'image/png' }));
+        }
+      } catch (e) {}
+      // HTML özet dosyası
+      try {
+        const htmlBlob = new Blob([getShareHtmlDoc()], { type: 'text/html' });
+        files.push(new File([htmlBlob], 'diyabet-ozet.html', { type: 'text/html' }));
+      } catch (e) {}
+
+      if (navigator.share) {
+        try {
+          if (files.length && navigator.canShare && navigator.canShare({ files })) {
+            await navigator.share({ title: name + ' – Diyabet', text, files });
+          } else {
+            await navigator.share({ title: name + ' – Diyabet', text: text + '\n\n(Uygulamada Dosya indir ile HTML alabilirsiniz.)' });
+          }
+          return;
+        } catch (e) {
+          if (e && e.name === 'AbortError') return; // kullanıcı iptal
+        }
+      }
+      // Share API yoksa dosya indir
+      downloadShareHtml();
+      alert('Sistem paylaşımı desteklenmiyor. HTML dosyası indirildi; onu WhatsApp/Mail ile gönderebilirsiniz.');
+    }
+
+    // ========== INIT ==========
+    // Başlık menüsü (PC + telefon)
+    const menuTrigger = document.getElementById('menuTrigger');
+    const headerMenu = document.getElementById('headerMenu');
+    if (menuTrigger && headerMenu) {
+      menuTrigger.addEventListener('click', (e) => {
+        e.stopPropagation();
+        headerMenu.style.display = headerMenu.style.display === 'none' ? 'block' : 'none';
+      });
+      headerMenu.querySelectorAll('.header-menu-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+          headerMenu.style.display = 'none';
+          showSection(btn.dataset.section);
+        });
+      });
+      document.addEventListener('click', () => { headerMenu.style.display = 'none'; });
+    }
+
+    loadState();
+    showSection('dashboard');
+  </script>
+</body>
+</html>
